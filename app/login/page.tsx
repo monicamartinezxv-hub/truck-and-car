@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 import { Truck } from 'lucide-react';
 import { getSession } from '@/lib/auth';
-import { loginAction } from '@/app/actions/auth';
 
 const DEMO_USERS = [
   ['admin', '1234', 'Administrador'],
@@ -31,7 +30,7 @@ export default async function LoginPage({
           </p>
         </div>
 
-        <form action={loginAction} className="card space-y-4">
+        <form method="post" action="/api/login" className="card space-y-4">
           <div>
             <label className="label" htmlFor="username">
               Usuario

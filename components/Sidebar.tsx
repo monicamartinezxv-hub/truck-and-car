@@ -19,7 +19,6 @@ import {
   Users,
   Wrench,
 } from 'lucide-react';
-import { logoutAction } from '@/app/actions/auth';
 import type { SessionUser } from '@/lib/auth';
 import type { NavItem } from '@/lib/nav';
 
@@ -106,7 +105,7 @@ export default function Sidebar({ user, items }: { user: SessionUser; items: Nav
             <p className="text-sm font-semibold text-white">{user.username}</p>
             <p className="text-xs text-slate-400">{user.label}</p>
           </div>
-          <form action={logoutAction}>
+          <form method="post" action="/api/logout">
             <button type="submit" className="btn-secondary w-full justify-start px-2 py-1.5 text-xs">
               <LogOut className="h-3.5 w-3.5" />
               Cerrar sesión

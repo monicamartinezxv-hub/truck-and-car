@@ -47,6 +47,13 @@ El esquema es idempotente (`CREATE TABLE IF NOT EXISTS`). Un cambio de esquema s
   el Host interno es `3000-<sandbox>.e2b.app`. `next.config.mjs` agrega ese host a
   `allowedDevOrigins` y a `experimental.serverActions.allowedOrigins` **sólo** cuando
   `BASE44_PREVIEW_MODE === '1'`; sin la bandera ambas listas quedan vacías.
+- **Login y logout son formularios POST normales** a `app/api/login` y `app/api/logout` (route
+  handlers), no Server Actions. En `next dev` cada recompilación cambia los IDs de las Server
+  Actions: una pestaña abierta desde antes enviaba un ID viejo, el POST devolvía 404
+  ("Failed to find Server Action") y el navegador mostraba la pantalla de excepción en el cliente.
+  Con un POST a un route handler el login nunca depende de un ID de acción.
+- `app/global-error.tsx` reemplaza el error genérico de Next por un aviso con botón **Recargar**
+  (pasa cuando la app se recompila con la ventana abierta).
 - Las acciones redirigen con `?msg=` / `?err=` (ver `lib/flash.ts`) y las páginas los muestran con
   el componente `Flash`. Es el mecanismo de confirmación que reemplaza los toasts del original.
 - Al crear un trabajo con condición **Deuda** se crea automáticamente la cuenta por cobrar; al
