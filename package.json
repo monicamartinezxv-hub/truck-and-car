@@ -1,0 +1,29 @@
+{
+  "name": "truck-and-car",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 3000",
+    "typecheck": "tsc --noEmit",
+    "db:init": "node scripts/init-db.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "1.64.0",
+    "next": "15.5.28",
+    "pg": "8.16.3",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "3.4.19",
+    "typescript": "5.9.3"
+  }
+}

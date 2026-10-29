@@ -1,0 +1,13 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/login",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "AUTH_SECRET",
+      "description": "Signing key for session cookies. Generated for development; replace with your own value for anything beyond local use.",
+      "requiredAtBoot": true,
+      "generatedForDevelopment": true
+    }
+  ]
+}
