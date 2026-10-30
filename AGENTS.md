@@ -63,5 +63,14 @@ El esquema es idempotente (`CREATE TABLE IF NOT EXISTS`). Un cambio de esquema s
   artículo elegido; editar un trabajo **no** vuelve a descontar stock.
 - `pg` devuelve `numeric` como string y `date` como Date: `lib/db.ts` registra type parsers para
   que lleguen como `number` y `'YYYY-MM-DD'`.
+- **Informes y Reportes** (`app/(app)/informes/page.tsx`): sin `?report=` muestra la grilla de
+  ocho tarjetas; con `?report=<id>` renderiza el informe correspondiente. Cada informe vive en
+  `components/reports/*Report.tsx` (server components que consultan `lib/db`) y comparte
+  `ReportFilters` (cliente: navega con `router.push`, no con un GET que recarga el documento, porque
+  el proxy de la vista previa devuelve al inicio), `ReportActions` (Exportar PDF / Imprimir con
+  `window.print` y todos los `details` desplegados) y `ui.tsx` (`ReportFrame`, `Metric`, `Drill`).
+  El drill-down usa `<details>` nativo, así funciona sin JS y se imprime completo.
+- Filtros por operario: las tablas guardan el usuario en `created_by` (y `cash_sessions.owner_username`);
+  `lib/reports.ts#operatorOptions` arma la lista con los usuarios y los valores ya usados.
 - La importación de `pg` en `app/actions/jobs.ts` es sólo de tipos (`PoolClient`), para no romper
   la regla de `'use server'` de exportar únicamente funciones async.
