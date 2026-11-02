@@ -28,7 +28,7 @@ export async function saveTire(formData: FormData) {
     await query(
       `UPDATE tire_records
        SET name = $1, ci_ruc = $2, phone = $3, tire_size = $4, tire_brand = $5, quantity = $6, notes = $7
-       WHERE id = $8`,
+       WHERE id = $8 AND unit_id = $9`,
       [
         fields.name,
         fields.ci_ruc,
@@ -38,12 +38,13 @@ export async function saveTire(formData: FormData) {
         fields.quantity,
         fields.notes,
         fields.id,
+        user.unit,
       ],
     );
   } else {
     await query(
-      `INSERT INTO tire_records (name, ci_ruc, phone, tire_size, tire_brand, quantity, notes, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      `INSERT INTO tire_records (name, ci_ruc, phone, tire_size, tire_brand, quantity, notes, created_by, unit_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         fields.name,
         fields.ci_ruc,
@@ -53,6 +54,7 @@ export async function saveTire(formData: FormData) {
         fields.quantity,
         fields.notes,
         user.username,
+        user.unit,
       ],
     );
   }
@@ -62,9 +64,9 @@ export async function saveTire(formData: FormData) {
 }
 
 export async function deleteTire(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const id = Number(formData.get('id'));
-  await query('DELETE FROM tire_records WHERE id = $1', [id]);
+  await query('DELETE FROM tire_records WHERE id = $1 AND unit_id = $2', [id, user.unit]);
   revalidatePath('/cubiertas');
   redirect(flashSuccess('/cubiertas', 'Registro eliminado'));
 }

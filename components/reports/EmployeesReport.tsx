@@ -23,7 +23,7 @@ type ProductionRow = {
   created_at: string;
 };
 
-export default async function EmployeesReport({ params }: { params: ReportParams }) {
+export default async function EmployeesReport({ params, unit }: { params: ReportParams; unit: string }) {
   const { from, to } = params;
 
   const employees = await query<EmployeeRow>(
@@ -35,17 +35,19 @@ export default async function EmployeesReport({ params }: { params: ReportParams
                 WHERE ($1 = '' OR created_at >= $1::date)
                   AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
                 GROUP BY employee_id) p ON p.employee_id = e.id
+     WHERE e.unit_id = $3
      ORDER BY production DESC, e.first_name`,
-    [from, to],
+    [from, to, unit],
   );
 
   const production = await query<ProductionRow>(
     `SELECT id, employee_id, description, cost, created_at
      FROM production_entries
-     WHERE ($1 = '' OR created_at >= $1::date)
+     WHERE employee_id IN (SELECT id FROM employees WHERE unit_id = $3)
+       AND ($1 = '' OR created_at >= $1::date)
        AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
      ORDER BY created_at DESC, id DESC`,
-    [from, to],
+    [from, to, unit],
   );
 
   const productionByEmployee = new Map<number, ProductionRow[]>();

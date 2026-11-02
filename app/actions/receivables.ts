@@ -32,8 +32,8 @@ export async function registerPayment(formData: FormData) {
       paid: boolean;
     }>(
       `SELECT id, client_id, client_name, balance, applied_amount, original_balance, currency, paid
-       FROM receivables WHERE id = $1 FOR UPDATE`,
-      [receivableId],
+       FROM receivables WHERE id = $1 AND unit_id = $2 FOR UPDATE`,
+      [receivableId, user.unit],
     );
     const receivable = row.rows[0];
     if (!receivable) return { error: 'La cuenta no existe' };
@@ -52,14 +52,14 @@ export async function registerPayment(formData: FormData) {
        SET balance = $1, applied_amount = applied_amount + $2, paid = $3,
            payment_date = CASE WHEN $3 THEN now() ELSE payment_date END,
            payment_method = CASE WHEN $3 THEN $4 ELSE payment_method END
-       WHERE id = $5`,
-      [newBalance, amount, fullyPaid, method, receivableId],
+       WHERE id = $5 AND unit_id = $6`,
+      [newBalance, amount, fullyPaid, method, receivableId, user.unit],
     );
 
     await client.query(
       `INSERT INTO debt_payments
-        (client_id, client_name, receivable_id, amount, payment_type, payment_method, currency, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        (client_id, client_name, receivable_id, amount, payment_type, payment_method, currency, created_by, unit_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         receivable.client_id,
         receivable.client_name,
@@ -69,6 +69,7 @@ export async function registerPayment(formData: FormData) {
         method,
         receivable.currency,
         user.username,
+        user.unit,
       ],
     );
 
@@ -105,10 +106,10 @@ export async function applyClientPayment(formData: FormData) {
     }>(
       `SELECT id, balance, currency, client_name
        FROM receivables
-       WHERE client_id = $1 AND NOT paid AND balance > 0
+       WHERE client_id = $1 AND unit_id = $2 AND NOT paid AND balance > 0
        ORDER BY service_date ASC, id ASC
        FOR UPDATE`,
-      [clientId],
+      [clientId, user.unit],
     );
     const debts = rows.rows;
     if (debts.length === 0) return { error: 'El cliente no tiene deudas pendientes' };
@@ -128,16 +129,16 @@ export async function applyClientPayment(formData: FormData) {
          SET balance = $1, applied_amount = applied_amount + $2, paid = $3,
              payment_date = CASE WHEN $3 THEN now() ELSE payment_date END,
              payment_method = CASE WHEN $3 THEN $4 ELSE payment_method END
-         WHERE id = $5`,
-        [newBalance, applied, newBalance <= 0.001, method, debt.id],
+         WHERE id = $5 AND unit_id = $6`,
+        [newBalance, applied, newBalance <= 0.001, method, debt.id, user.unit],
       );
       remaining -= applied;
     }
 
     await client.query(
       `INSERT INTO debt_payments
-        (client_id, client_name, receivable_id, amount, payment_type, payment_method, currency, notes, created_by)
-       VALUES ($1, $2, NULL, $3, 'parcial', $4, $5, $6, $7)`,
+        (client_id, client_name, receivable_id, amount, payment_type, payment_method, currency, notes, created_by, unit_id)
+       VALUES ($1, $2, NULL, $3, 'parcial', $4, $5, $6, $7, $8)`,
       [
         clientId,
         debts[0].client_name,
@@ -146,6 +147,7 @@ export async function applyClientPayment(formData: FormData) {
         debts[0].currency,
         `Abono aplicado a ${debts.length} cuenta(s)`,
         user.username,
+        user.unit,
       ],
     );
 

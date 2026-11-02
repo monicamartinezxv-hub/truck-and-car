@@ -19,7 +19,7 @@ type JobRow = {
   items: string;
 };
 
-export default async function JobsReport({ params }: { params: ReportParams }) {
+export default async function JobsReport({ params, unit }: { params: ReportParams; unit: string }) {
   const { from, to, user } = params;
 
   const jobs = await query<JobRow>(
@@ -31,8 +31,9 @@ export default async function JobsReport({ params }: { params: ReportParams }) {
      WHERE ($1 = '' OR j.service_date >= $1::date)
        AND ($2 = '' OR j.service_date <= $2::date)
        AND ($3 = '' OR j.created_by = $3)
+       AND j.unit_id = $4
      ORDER BY j.service_date DESC, j.id DESC`,
-    [from, to, user],
+    [from, to, user, unit],
   );
 
   const byOperator = new Map<string, { count: number; total: number }>();

@@ -59,7 +59,10 @@ export default async function JobDetailPage({
   const jobId = Number(id);
   if (!Number.isFinite(jobId)) notFound();
 
-  const job = await one<JobRow>('SELECT * FROM jobs WHERE id = $1', [jobId]);
+  const job = await one<JobRow>('SELECT * FROM jobs WHERE id = $1 AND unit_id = $2', [
+    jobId,
+    user.unit,
+  ]);
   if (!job) notFound();
 
   const items = await query<ItemRow>(
@@ -69,16 +72,20 @@ export default async function JobDetailPage({
   const clients = await query<ClientOption>(
     `SELECT c.id, c.name,
             COALESCE((SELECT v.plate FROM client_vehicles v WHERE v.client_id = c.id AND v.plate <> '' LIMIT 1), '') AS plate
-     FROM clients c ORDER BY c.name`,
+     FROM clients c WHERE c.unit_id = $1 ORDER BY c.name`,
+    [user.unit],
   );
   const stock = await query<StockOption>(
     `SELECT id, product_name, category, quantity, price
-     FROM stock_items WHERE section = 'general' AND quantity > 0
+     FROM stock_items
+     WHERE unit_id = $1 AND section = 'general' AND quantity > 0
      ORDER BY product_name`,
+    [user.unit],
   );
   const receivable = await one<ReceivableRow>(
-    'SELECT id, balance, original_balance, paid, currency FROM receivables WHERE job_id = $1 ORDER BY id LIMIT 1',
-    [jobId],
+    `SELECT id, balance, original_balance, paid, currency FROM receivables
+     WHERE job_id = $1 AND unit_id = $2 ORDER BY id LIMIT 1`,
+    [jobId, user.unit],
   );
 
   const initialItems: ItemDraft[] = items.map((item) => ({

@@ -38,7 +38,11 @@ function parseItems(raw: FormDataEntryValue | null): JobItemInput[] {
  * Los perfiles operativos no pueden alterar el precio de un artículo: se toma
  * siempre el precio oficial cargado por la administración.
  */
-async function withOfficialPrices(items: JobItemInput[], role: Role): Promise<JobItemInput[]> {
+async function withOfficialPrices(
+  items: JobItemInput[],
+  role: Role,
+  unit: string,
+): Promise<JobItemInput[]> {
   if (canEditPrices(role)) return items;
 
   const stockIds = items
@@ -47,8 +51,8 @@ async function withOfficialPrices(items: JobItemInput[], role: Role): Promise<Jo
   if (stockIds.length === 0) return items;
 
   const rows = await query<{ id: number; price: number }>(
-    'SELECT id, price FROM stock_items WHERE id = ANY($1::int[])',
-    [stockIds],
+    'SELECT id, price FROM stock_items WHERE id = ANY($1::int[]) AND unit_id = $2',
+    [stockIds, unit],
   );
   const prices = new Map(rows.map((row) => [row.id, Number(row.price)]));
 
@@ -91,12 +95,12 @@ function jobFields(formData: FormData) {
   };
 }
 
-async function deductStock(client: PoolClient, items: JobItemInput[]) {
+async function deductStock(client: PoolClient, items: JobItemInput[], unit: string) {
   for (const item of items) {
     if (item.stock_item_id) {
       await client.query(
-        `UPDATE stock_items SET quantity = GREATEST(quantity - $1, 0) WHERE id = $2`,
-        [item.quantity, item.stock_item_id],
+        `UPDATE stock_items SET quantity = GREATEST(quantity - $1, 0) WHERE id = $2 AND unit_id = $3`,
+        [item.quantity, item.stock_item_id, unit],
       );
       continue;
     }
@@ -104,15 +108,15 @@ async function deductStock(client: PoolClient, items: JobItemInput[]) {
     if (!category) continue;
     const stockRow = await client.query<{ id: number; quantity: number }>(
       `SELECT id, quantity FROM stock_items
-       WHERE category = $1 AND section = 'general' AND quantity > 0
+       WHERE category = $1 AND unit_id = $2 AND section = 'general' AND quantity > 0
        ORDER BY id LIMIT 1`,
-      [category],
+      [category, unit],
     );
     const stockItem = stockRow.rows[0];
     if (stockItem) {
       await client.query(
-        `UPDATE stock_items SET quantity = GREATEST(quantity - $1, 0) WHERE id = $2`,
-        [Math.min(item.quantity, stockItem.quantity), stockItem.id],
+        `UPDATE stock_items SET quantity = GREATEST(quantity - $1, 0) WHERE id = $2 AND unit_id = $3`,
+        [Math.min(item.quantity, stockItem.quantity), stockItem.id, unit],
       );
     }
   }
@@ -120,7 +124,7 @@ async function deductStock(client: PoolClient, items: JobItemInput[]) {
 
 export async function createJob(formData: FormData) {
   const user = await requireUser();
-  const items = await withOfficialPrices(parseItems(formData.get('items')), user.role);
+  const items = await withOfficialPrices(parseItems(formData.get('items')), user.role, user.unit);
   const fields = jobFields(formData);
 
   if (items.length === 0) {
@@ -134,8 +138,8 @@ export async function createJob(formData: FormData) {
     const clientRow = fields.client_id
       ? (
           await client.query<{ name: string; phone: string }>(
-            'SELECT name, phone FROM clients WHERE id = $1',
-            [fields.client_id],
+            'SELECT name, phone FROM clients WHERE id = $1 AND unit_id = $2',
+            [fields.client_id, user.unit],
           )
         ).rows[0]
       : null;
@@ -145,8 +149,8 @@ export async function createJob(formData: FormData) {
     const inserted = await client.query<{ id: number }>(
       `INSERT INTO jobs
         (client_id, client_name, plate, service_date, end_date, currency, payment_condition,
-         total, description, notes, checklist, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
+         total, description, notes, checklist, created_by, unit_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13)
        RETURNING id`,
       [
         fields.client_id,
@@ -161,6 +165,7 @@ export async function createJob(formData: FormData) {
         fields.notes,
         JSON.stringify(checklist),
         user.username,
+        user.unit,
       ],
     );
     const id = inserted.rows[0].id;
@@ -173,14 +178,14 @@ export async function createJob(formData: FormData) {
       );
     }
 
-    await deductStock(client, items);
+    await deductStock(client, items, user.unit);
 
     if (fields.payment_condition === 'Deuda' && total > 0) {
       await client.query(
         `INSERT INTO receivables
           (client_id, job_id, client_name, plate, description, service_date, currency,
-           original_balance, balance, applied_amount, paid, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, 0, false, $9)`,
+           original_balance, balance, applied_amount, paid, created_by, unit_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, 0, false, $9, $10)`,
         [
           fields.client_id,
           id,
@@ -191,6 +196,7 @@ export async function createJob(formData: FormData) {
           fields.currency,
           total,
           user.username,
+          user.unit,
         ],
       );
     }
@@ -210,7 +216,7 @@ export async function updateJob(formData: FormData) {
   const jobId = Number(formData.get('id'));
   if (!jobId) redirect(flashError('/taller', 'Trabajo inválido'));
 
-  const items = await withOfficialPrices(parseItems(formData.get('items')), user.role);
+  const items = await withOfficialPrices(parseItems(formData.get('items')), user.role, user.unit);
   if (items.length === 0) {
     redirect(flashError(`/taller/${jobId}`, 'El trabajo necesita al menos un ítem'));
   }
@@ -220,17 +226,19 @@ export async function updateJob(formData: FormData) {
 
   await withTransaction(async (client) => {
     const current = await client.query<{ payment_condition: string; client_id: number | null }>(
-      'SELECT payment_condition, client_id FROM jobs WHERE id = $1',
-      [jobId],
+      'SELECT payment_condition, client_id FROM jobs WHERE id = $1 AND unit_id = $2',
+      [jobId, user.unit],
     );
-    if (!current.rows[0]) return;
+    if (!current.rows[0]) {
+      redirect(flashError('/taller', 'Trabajo no encontrado'));
+    }
 
     const description = items.map((item) => item.service).join(', ');
     await client.query(
       `UPDATE jobs SET client_id = $1, plate = $2, service_date = $3, end_date = $4,
          currency = $5, payment_condition = $6, total = $7, description = $8, notes = $9,
          checklist = $10::jsonb
-       WHERE id = $11`,
+       WHERE id = $11 AND unit_id = $12`,
       [
         fields.client_id,
         fields.plate,
@@ -243,6 +251,7 @@ export async function updateJob(formData: FormData) {
         fields.notes,
         JSON.stringify(checklist),
         jobId,
+        user.unit,
       ],
     );
 
@@ -256,24 +265,25 @@ export async function updateJob(formData: FormData) {
     }
 
     const receivable = await client.query<{ id: number; paid: boolean }>(
-      'SELECT id, paid FROM receivables WHERE job_id = $1 ORDER BY id LIMIT 1',
-      [jobId],
+      'SELECT id, paid FROM receivables WHERE job_id = $1 AND unit_id = $2 ORDER BY id LIMIT 1',
+      [jobId, user.unit],
     );
     const existing = receivable.rows[0];
 
     if (fields.payment_condition === 'Deuda' && !existing && total > 0) {
       const clientRow = fields.client_id
         ? (
-            await client.query<{ name: string }>('SELECT name FROM clients WHERE id = $1', [
-              fields.client_id,
-            ])
+            await client.query<{ name: string }>(
+              'SELECT name FROM clients WHERE id = $1 AND unit_id = $2',
+              [fields.client_id, user.unit],
+            )
           ).rows[0]
         : null;
       await client.query(
         `INSERT INTO receivables
           (client_id, job_id, client_name, plate, description, service_date, currency,
-           original_balance, balance, applied_amount, paid, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, 0, false, 'sistema')`,
+           original_balance, balance, applied_amount, paid, created_by, unit_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, 0, false, 'sistema', $9)`,
         [
           fields.client_id,
           jobId,
@@ -283,6 +293,7 @@ export async function updateJob(formData: FormData) {
           fields.service_date,
           fields.currency,
           total,
+          user.unit,
         ],
       );
     }
@@ -291,8 +302,8 @@ export async function updateJob(formData: FormData) {
       await client.query(
         `UPDATE receivables
          SET original_balance = $1, balance = GREATEST($1 - applied_amount, 0), description = $2
-         WHERE id = $3`,
-        [total, description, existing.id],
+         WHERE id = $3 AND unit_id = $4`,
+        [total, description, existing.id, user.unit],
       );
     }
   });
@@ -305,13 +316,16 @@ export async function updateJob(formData: FormData) {
 }
 
 export async function deleteJob(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const jobId = Number(formData.get('id'));
   if (!jobId) redirect(flashError('/taller', 'Trabajo inválido'));
 
   await withTransaction(async (client) => {
-    await client.query('DELETE FROM receivables WHERE job_id = $1 AND NOT paid', [jobId]);
-    await client.query('DELETE FROM jobs WHERE id = $1', [jobId]);
+    await client.query('DELETE FROM receivables WHERE job_id = $1 AND unit_id = $2 AND NOT paid', [
+      jobId,
+      user.unit,
+    ]);
+    await client.query('DELETE FROM jobs WHERE id = $1 AND unit_id = $2', [jobId, user.unit]);
   });
 
   revalidatePath('/taller');

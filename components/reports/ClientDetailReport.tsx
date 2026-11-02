@@ -56,14 +56,14 @@ type PaymentRow = {
   created_at: string;
 };
 
-export default async function ClientDetailReport({ params }: { params: ReportParams }) {
+export default async function ClientDetailReport({ params, unit }: { params: ReportParams; unit: string }) {
   const { from, to, user, q } = params;
 
   const matches = await query<ClientMatch>(
     `SELECT id, name, ci_ruc FROM clients
-     WHERE ($1 = '' OR name ILIKE '%' || $1 || '%' OR ci_ruc ILIKE '%' || $1 || '%')
+     WHERE unit_id = $2 AND ($1 = '' OR name ILIKE '%' || $1 || '%' OR ci_ruc ILIKE '%' || $1 || '%')
      ORDER BY name LIMIT 100`,
-    [q],
+    [q, unit],
   );
 
   const selectedId = Number(params.client) || matches[0]?.id || 0;
@@ -71,8 +71,8 @@ export default async function ClientDetailReport({ params }: { params: ReportPar
   const client = selectedId
     ? await one<ClientRow>(
         `SELECT id, client_code, name, ci_ruc, phone, address, payment_condition, created_at
-         FROM clients WHERE id = $1`,
-        [selectedId],
+         FROM clients WHERE id = $1 AND unit_id = $2`,
+        [selectedId, unit],
       )
     : null;
 
@@ -94,8 +94,9 @@ export default async function ClientDetailReport({ params }: { params: ReportPar
          WHERE j.client_id = $1
            AND ($2 = '' OR j.service_date >= $2::date) AND ($3 = '' OR j.service_date <= $3::date)
            AND ($4 = '' OR j.created_by = $4)
+           AND j.unit_id = $5
          ORDER BY j.service_date DESC, j.id DESC`,
-        [client.id, from, to, user],
+        [client.id, from, to, user, unit],
       )
     : [];
 
@@ -107,8 +108,9 @@ export default async function ClientDetailReport({ params }: { params: ReportPar
          WHERE client_id = $1
            AND ($2 = '' OR service_date >= $2::date) AND ($3 = '' OR service_date <= $3::date)
            AND ($4 = '' OR created_by = $4)
+           AND unit_id = $5
          ORDER BY service_date DESC, id DESC`,
-        [client.id, from, to, user],
+        [client.id, from, to, user, unit],
       )
     : [];
 
@@ -120,16 +122,18 @@ export default async function ClientDetailReport({ params }: { params: ReportPar
            AND ($2 = '' OR created_at >= $2::date)
            AND ($3 = '' OR created_at < ($3::date + interval '1 day'))
            AND ($4 = '' OR created_by = $4)
+           AND unit_id = $5
          ORDER BY created_at DESC`,
-        [client.id, from, to, user],
+        [client.id, from, to, user, unit],
       )
     : [];
 
   const debt = client
     ? await one<{ balance: number; currency: string }>(
         `SELECT COALESCE(sum(balance), 0) AS balance, max(currency) AS currency
-         FROM receivables WHERE client_id = $1 AND NOT paid AND ($2 = '' OR created_by = $2)`,
-        [client.id, user],
+         FROM receivables
+         WHERE client_id = $1 AND unit_id = $3 AND NOT paid AND ($2 = '' OR created_by = $2)`,
+        [client.id, user, unit],
       )
     : null;
 

@@ -11,7 +11,8 @@ function normalizeRole(value: FormDataEntryValue | null): string {
 }
 
 export async function createUser(formData: FormData) {
-  await requireAdmin();
+  // El usuario nuevo hereda la unidad de negocio de quien lo crea.
+  const session = await requireAdmin();
   const username = String(formData.get('username') ?? '').trim().toLowerCase();
   const password = String(formData.get('password') ?? '');
   const role = normalizeRole(formData.get('role'));
@@ -25,8 +26,8 @@ export async function createUser(formData: FormData) {
   if (existing) redirect(flashError('/usuarios', 'Ese usuario ya existe'));
 
   await query(
-    'INSERT INTO users (username, password_hash, role, label) VALUES ($1, $2, $3, $4)',
-    [username, hashPassword(password), role, label],
+    'INSERT INTO users (username, password_hash, role, label, unit_id) VALUES ($1, $2, $3, $4, $5)',
+    [username, hashPassword(password), role, label, session.unit],
   );
 
   revalidatePath('/usuarios');

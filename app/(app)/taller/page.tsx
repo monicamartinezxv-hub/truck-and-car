@@ -25,7 +25,7 @@ export default async function WorkshopPage({
 }: {
   searchParams: Promise<FlashParams & { q?: string; cond?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { q = '', cond = '', msg, err } = await searchParams;
   const term = q.trim();
   const condition = cond === 'Deuda' || cond === 'Contado' ? cond : '';
@@ -35,11 +35,12 @@ export default async function WorkshopPage({
             j.payment_condition,
             (SELECT count(*) FROM job_items i WHERE i.job_id = j.id)::int AS items_count
      FROM jobs j
-     WHERE ($1 = '' OR j.client_name ILIKE '%' || $1 || '%' OR j.plate ILIKE '%' || $1 || '%'
-            OR j.description ILIKE '%' || $1 || '%')
-       AND ($2 = '' OR j.payment_condition = $2)
+     WHERE j.unit_id = $1
+       AND ($2 = '' OR j.client_name ILIKE '%' || $2 || '%' OR j.plate ILIKE '%' || $2 || '%'
+            OR j.description ILIKE '%' || $2 || '%')
+       AND ($3 = '' OR j.payment_condition = $3)
      ORDER BY j.service_date DESC, j.id DESC`,
-    [term, condition],
+    [user.unit, term, condition],
   );
 
   const total = jobs.reduce((sum, job) => sum + Number(job.total), 0);

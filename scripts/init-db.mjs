@@ -6,12 +6,13 @@ import pg from 'pg';
 
 const { Client } = pg;
 
+// unit_id: unidad de negocio aislada a la que pertenece cada usuario.
 const DEFAULT_USERS = [
-  { username: 'admin', password: '1234', role: 'admin', label: 'Administrador' },
-  { username: 'admin2', password: '4132', role: 'admin2', label: 'Administrador Garaje 14' },
-  { username: 'usertaller', password: '4321', role: 'user', label: 'Taller' },
-  { username: 'usergomeria', password: '4321', role: 'user', label: 'Gomería' },
-  { username: 'garaje14', password: '4213', role: 'user', label: 'Garaje 14' },
+  { username: 'admin', password: '1234', role: 'admin', label: 'Administrador', unit: 'principal' },
+  { username: 'admin2', password: '4132', role: 'admin2', label: 'Administrador Garaje 14', unit: 'garaje14' },
+  { username: 'usertaller', password: '4321', role: 'user', label: 'Taller', unit: 'principal' },
+  { username: 'usergomeria', password: '4321', role: 'user', label: 'Gomería', unit: 'principal' },
+  { username: 'garaje14', password: '4213', role: 'user', label: 'Garaje 14', unit: 'garaje14' },
 ];
 
 function hashPassword(password) {
@@ -44,10 +45,10 @@ try {
 
   for (const user of DEFAULT_USERS) {
     await client.query(
-      `INSERT INTO users (username, password_hash, role, label)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO users (username, password_hash, role, label, unit_id)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (username) DO NOTHING`,
-      [user.username, hashPassword(user.password), user.role, user.label],
+      [user.username, hashPassword(user.password), user.role, user.label, user.unit],
     );
   }
   console.log('users ready');

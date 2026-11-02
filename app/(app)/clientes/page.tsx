@@ -25,20 +25,21 @@ export default async function ClientsPage({
 }: {
   searchParams: Promise<FlashParams & { q?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { q = '', msg, err } = await searchParams;
   const term = q.trim();
 
   const clients = await query<ClientRow>(
     `SELECT c.id, c.client_code, c.name, c.ci_ruc, c.phone, c.payment_condition,
             (SELECT count(*) FROM client_vehicles v WHERE v.client_id = c.id)::int AS vehicles_count,
-            (SELECT count(*) FROM jobs j WHERE j.client_id = c.id)::int AS jobs_count,
-            COALESCE((SELECT sum(r.balance) FROM receivables r WHERE r.client_id = c.id AND NOT r.paid), 0) AS debt
+            (SELECT count(*) FROM jobs j WHERE j.client_id = c.id AND j.unit_id = c.unit_id)::int AS jobs_count,
+            COALESCE((SELECT sum(r.balance) FROM receivables r WHERE r.client_id = c.id AND r.unit_id = c.unit_id AND NOT r.paid), 0) AS debt
      FROM clients c
-     WHERE $1 = '' OR c.name ILIKE '%' || $1 || '%' OR c.ci_ruc ILIKE '%' || $1 || '%'
-        OR c.phone ILIKE '%' || $1 || '%' OR c.client_code ILIKE '%' || $1 || '%'
+     WHERE c.unit_id = $1
+       AND ($2 = '' OR c.name ILIKE '%' || $2 || '%' OR c.ci_ruc ILIKE '%' || $2 || '%'
+        OR c.phone ILIKE '%' || $2 || '%' OR c.client_code ILIKE '%' || $2 || '%')
      ORDER BY c.name ASC`,
-    [term],
+    [user.unit, term],
   );
 
   return (

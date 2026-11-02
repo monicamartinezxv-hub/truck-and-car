@@ -17,6 +17,8 @@ export type SessionUser = {
   username: string;
   role: Role;
   label: string;
+  /** Unidad de negocio aislada: todos los datos del usuario viven en esta unidad. */
+  unit: string;
 };
 
 type UserRow = {
@@ -24,6 +26,7 @@ type UserRow = {
   password_hash: string;
   role: Role;
   label: string;
+  unit_id: string;
 };
 
 function secret(): string {
@@ -53,11 +56,12 @@ export async function authenticate(
   password: string,
 ): Promise<SessionUser | null> {
   const user = await one<UserRow>(
-    'SELECT username, password_hash, role, label FROM users WHERE lower(username) = lower($1)',
+    `SELECT username, password_hash, role, label, unit_id
+     FROM users WHERE lower(username) = lower($1)`,
     [username.trim()],
   );
   if (!user || !verifyPassword(password, user.password_hash)) return null;
-  return { username: user.username, role: user.role, label: user.label };
+  return { username: user.username, role: user.role, label: user.label, unit: user.unit_id };
 }
 
 export async function createSession(user: SessionUser): Promise<void> {
@@ -90,8 +94,9 @@ export async function getSession(): Promise<SessionUser | null> {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as SessionUser & {
       exp: number;
     };
-    if (!data.exp || data.exp < Date.now()) return null;
-    return { username: data.username, role: data.role, label: data.label };
+    // Las sesiones viejas (sin unidad) se invalidan para no caer en la unidad equivocada.
+    if (!data.exp || data.exp < Date.now() || !data.unit) return null;
+    return { username: data.username, role: data.role, label: data.label, unit: data.unit };
   } catch {
     return null;
   }

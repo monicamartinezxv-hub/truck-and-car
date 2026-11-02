@@ -3,6 +3,7 @@ import { Wrench } from 'lucide-react';
 import { query, one } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { formatDate, formatMoney } from '@/lib/format';
+import { unitLabel } from '@/lib/tenant';
 import PageHeader, { EmptyState, StatCard } from '@/components/ui';
 
 type Totals = {
@@ -32,33 +33,36 @@ type DebtRow = {
 export default async function DashboardPage() {
   const user = await requireUser();
 
-  const totals = await one<Totals>(`
-    SELECT
-      (SELECT count(*) FROM clients)::int AS clients,
-      (SELECT count(*) FROM jobs WHERE service_date = current_date)::int AS jobs_today,
-      COALESCE((SELECT sum(balance) FROM receivables WHERE NOT paid), 0) AS receivable,
-      COALESCE((SELECT sum(amount) FROM sales), 0) AS sales
-  `);
+  const totals = await one<Totals>(
+    `SELECT
+      (SELECT count(*) FROM clients WHERE unit_id = $1)::int AS clients,
+      (SELECT count(*) FROM jobs WHERE unit_id = $1 AND service_date = current_date)::int AS jobs_today,
+      COALESCE((SELECT sum(balance) FROM receivables WHERE unit_id = $1 AND NOT paid), 0) AS receivable,
+      COALESCE((SELECT sum(amount) FROM sales WHERE unit_id = $1), 0) AS sales`,
+    [user.unit],
+  );
 
   const jobs = await query<JobRow>(
     `SELECT id, client_name, description, service_date, total, currency, payment_condition
-     FROM jobs ORDER BY service_date DESC, id DESC LIMIT 5`,
+     FROM jobs WHERE unit_id = $1 ORDER BY service_date DESC, id DESC LIMIT 5`,
+    [user.unit],
   );
 
   const debts = await query<DebtRow>(
     `SELECT client_name, sum(balance) AS total, min(service_date) AS oldest, max(currency) AS currency
      FROM receivables
-     WHERE NOT paid AND service_date < current_date - interval '30 days'
+     WHERE unit_id = $1 AND NOT paid AND service_date < current_date - interval '30 days'
      GROUP BY client_name
      ORDER BY total DESC
      LIMIT 5`,
+    [user.unit],
   );
 
   return (
     <div>
       <PageHeader
         title={user.role === 'user' ? `Dashboard - ${user.label}` : 'Dashboard'}
-        subtitle="Resumen general del taller"
+        subtitle={`Resumen general · ${unitLabel(user.unit)}`}
         actions={
           <Link href="/taller/nuevo" className="btn-primary">
             <Wrench className="h-4 w-4" />

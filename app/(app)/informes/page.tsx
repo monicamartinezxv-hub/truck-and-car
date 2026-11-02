@@ -40,7 +40,7 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const params = parseReportParams(await searchParams);
   const meta = findReport(params.report);
 
@@ -76,7 +76,7 @@ export default async function ReportsPage({
     );
   }
 
-  const operators = meta.operators ? await operatorOptions() : [];
+  const operators = meta.operators ? await operatorOptions(user.unit) : [];
 
   return (
     <div>
@@ -98,14 +98,14 @@ export default async function ReportsPage({
 
       <ReportFilters meta={meta} params={params} operators={operators} />
 
-      {meta.id === 'cliente' ? <ClientDetailReport params={params} /> : null}
-      {meta.id === 'cubiertas' ? <TiresReport params={params} /> : null}
-      {meta.id === 'gestion' ? <ClientMovementsReport params={params} /> : null}
-      {meta.id === 'credito' ? <CreditClientsReport params={params} /> : null}
-      {meta.id === 'funcionarios' ? <EmployeesReport params={params} /> : null}
-      {meta.id === 'cuentas' ? <ReceivablesReport params={params} /> : null}
-      {meta.id === 'caja' ? <CashReport params={params} /> : null}
-      {meta.id === 'trabajos' ? <JobsReport params={params} /> : null}
+      {meta.id === 'cliente' ? <ClientDetailReport params={params} unit={user.unit} /> : null}
+      {meta.id === 'cubiertas' ? <TiresReport params={params} unit={user.unit} /> : null}
+      {meta.id === 'gestion' ? <ClientMovementsReport params={params} unit={user.unit} /> : null}
+      {meta.id === 'credito' ? <CreditClientsReport params={params} unit={user.unit} /> : null}
+      {meta.id === 'funcionarios' ? <EmployeesReport params={params} unit={user.unit} /> : null}
+      {meta.id === 'cuentas' ? <ReceivablesReport params={params} unit={user.unit} /> : null}
+      {meta.id === 'caja' ? <CashReport params={params} unit={user.unit} /> : null}
+      {meta.id === 'trabajos' ? <JobsReport params={params} unit={user.unit} /> : null}
     </div>
   );
 }

@@ -51,7 +51,7 @@ const emptyTotals = (operator: string): OperatorTotals => ({
   history: [],
 });
 
-export default async function CashReport({ params }: { params: ReportParams }) {
+export default async function CashReport({ params, unit }: { params: ReportParams; unit: string }) {
   const { from, to, user } = params;
 
   const sessions = await query<SessionRow>(
@@ -60,8 +60,9 @@ export default async function CashReport({ params }: { params: ReportParams }) {
      WHERE ($1 = '' OR opened_at >= $1::date)
        AND ($2 = '' OR opened_at < ($2::date + interval '1 day'))
        AND ($3 = '' OR owner_username = $3)
+       AND unit_id = $4
      ORDER BY opened_at DESC`,
-    [from, to, user],
+    [from, to, user, unit],
   );
 
   const sales = await query<MovementAgg>(
@@ -71,8 +72,9 @@ export default async function CashReport({ params }: { params: ReportParams }) {
      WHERE ($1 = '' OR created_at >= $1::date)
        AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
        AND ($3 = '' OR created_by = $3)
+       AND unit_id = $4
      GROUP BY created_by`,
-    [from, to, user],
+    [from, to, user, unit],
   );
 
   const payments = await query<MovementAgg>(
@@ -82,8 +84,9 @@ export default async function CashReport({ params }: { params: ReportParams }) {
      WHERE ($1 = '' OR created_at >= $1::date)
        AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
        AND ($3 = '' OR created_by = $3)
+       AND unit_id = $4
      GROUP BY created_by`,
-    [from, to, user],
+    [from, to, user, unit],
   );
 
   const jobs = await query<MovementAgg>(
@@ -93,8 +96,9 @@ export default async function CashReport({ params }: { params: ReportParams }) {
        AND ($1 = '' OR service_date >= $1::date)
        AND ($2 = '' OR service_date <= $2::date)
        AND ($3 = '' OR created_by = $3)
+       AND unit_id = $4
      GROUP BY created_by`,
-    [from, to, user],
+    [from, to, user, unit],
   );
 
   const totals = new Map<string, OperatorTotals>();

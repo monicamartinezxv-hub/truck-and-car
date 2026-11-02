@@ -26,7 +26,7 @@ const BUCKETS = [
   { id: '+90', label: 'Más de 90 días', max: Number.POSITIVE_INFINITY },
 ];
 
-export default async function ReceivablesReport({ params }: { params: ReportParams }) {
+export default async function ReceivablesReport({ params, unit }: { params: ReportParams; unit: string }) {
   const { from, to, user } = params;
 
   const accounts = await query<AccountRow>(
@@ -36,8 +36,9 @@ export default async function ReceivablesReport({ params }: { params: ReportPara
      WHERE ($1 = '' OR service_date >= $1::date)
        AND ($2 = '' OR service_date <= $2::date)
        AND ($3 = '' OR created_by = $3)
+       AND unit_id = $4
      ORDER BY service_date`,
-    [from, to, user],
+    [from, to, user, unit],
   );
 
   const open = accounts.filter((account) => !account.paid && Number(account.balance) > 0);

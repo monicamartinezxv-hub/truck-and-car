@@ -23,12 +23,13 @@ export default async function StockPage({
 }: {
   searchParams: Promise<FlashParams>;
 }) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const { msg, err } = await searchParams;
 
   const items = await query<StockRow>(
     `SELECT id, product_name, category, quantity, price, supplier
-     FROM stock_items WHERE section = 'general' ORDER BY product_name`,
+     FROM stock_items WHERE unit_id = $1 AND section = 'general' ORDER BY product_name`,
+    [user.unit],
   );
 
   const lowStock = items.filter((item) => item.quantity < 5).length;

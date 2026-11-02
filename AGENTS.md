@@ -84,3 +84,14 @@ El esquema es idempotente (`CREATE TABLE IF NOT EXISTS`). Un cambio de esquema s
   guardar un trabajo se vuelve a `/taller` (no al detalle con el formulario cargado), así un F5 no
   reenvía nada. Todos los formularios usan `components/SubmitButton.tsx` (`useFormStatus`), que
   deshabilita el botón mientras la acción está en curso para cortar el doble clic.
+- **Unidades de negocio aisladas** (`principal` | `garaje14`): `admin`, `usertaller` y `usergomeria`
+  trabajan en `principal`; `admin2` y `garaje14` en `garaje14`. La unidad viaja en la sesión
+  (`SessionUser.unit`) y **toda** consulta operativa filtra por `unit_id`; las altas lo escriben y
+  los `UPDATE`/`DELETE` agregan `AND unit_id = <unidad>` como segunda barrera. Las tablas hijas
+  (`client_vehicles`, `job_items`, `production_entries`) no llevan `unit_id`: se accede a ellas por
+  el padre, que ya está filtrado. Una cookie sin unidad se invalida, así que un despliegue de este
+  cambio obliga a iniciar sesión de nuevo. El detalle del plan está en
+  `docs/plan-aislamiento-unidades.md`.
+- **Alcance por operario dentro de la unidad**: la caja del admin muestra el consolidado de *su*
+  unidad (`created_by`), nunca el de la otra. `stock_items.section` sigue separando `general` de
+  `garaje14`, pero el aislamiento real es `unit_id`.

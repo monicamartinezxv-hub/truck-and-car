@@ -19,13 +19,16 @@ export default async function NewJobPage({
   const clients = await query<ClientOption>(
     `SELECT c.id, c.name,
             COALESCE((SELECT v.plate FROM client_vehicles v WHERE v.client_id = c.id AND v.plate <> '' LIMIT 1), '') AS plate
-     FROM clients c ORDER BY c.name`,
+     FROM clients c WHERE c.unit_id = $1 ORDER BY c.name`,
+    [user.unit],
   );
 
   const stock = await query<StockOption>(
     `SELECT id, product_name, category, quantity, price
-     FROM stock_items WHERE section = 'general' AND quantity > 0
+     FROM stock_items
+     WHERE unit_id = $1 AND section = 'general' AND quantity > 0
      ORDER BY product_name`,
+    [user.unit],
   );
 
   return (

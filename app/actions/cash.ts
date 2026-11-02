@@ -11,14 +11,16 @@ export async function openCash(formData: FormData) {
   const amount = Math.max(0, Number(formData.get('opening_amount')) || 0);
 
   const existing = await one<{ id: number }>(
-    `SELECT id FROM cash_sessions WHERE owner_username = $1 AND status = 'open' LIMIT 1`,
-    [user.username],
+    `SELECT id FROM cash_sessions
+     WHERE owner_username = $1 AND unit_id = $2 AND status = 'open' LIMIT 1`,
+    [user.username, user.unit],
   );
   if (existing) redirect(flashError('/caja', 'La caja ya está abierta'));
 
   await query(
-    `INSERT INTO cash_sessions (owner_username, opening_amount, status) VALUES ($1, $2, 'open')`,
-    [user.username, amount],
+    `INSERT INTO cash_sessions (owner_username, opening_amount, status, unit_id)
+     VALUES ($1, $2, 'open', $3)`,
+    [user.username, amount, user.unit],
   );
 
   revalidatePath('/caja');
@@ -30,29 +32,30 @@ export async function closeCash() {
 
   const session = await one<{ id: number; opening_amount: number; opened_at: string }>(
     `SELECT id, opening_amount, opened_at FROM cash_sessions
-     WHERE owner_username = $1 AND status = 'open'
+     WHERE owner_username = $1 AND unit_id = $2 AND status = 'open'
      ORDER BY opened_at DESC LIMIT 1`,
-    [user.username],
+    [user.username, user.unit],
   );
   if (!session) redirect(flashError('/caja', 'No hay una caja abierta'));
 
   const cashIn = await one<{ total: number }>(
     `SELECT
        COALESCE((SELECT sum(amount) FROM sales
-                 WHERE created_by = $1 AND payment_method = 'Efectivo' AND created_at >= $2), 0)
+                 WHERE unit_id = $1 AND created_by = $2 AND payment_method = 'Efectivo' AND created_at >= $3), 0)
      + COALESCE((SELECT sum(total) FROM jobs
-                 WHERE created_by = $1 AND payment_condition = 'Contado'
-                   AND created_at >= $2), 0)
+                 WHERE unit_id = $1 AND created_by = $2 AND payment_condition = 'Contado'
+                   AND created_at >= $3), 0)
      + COALESCE((SELECT sum(amount) FROM debt_payments
-                 WHERE created_by = $1 AND payment_method = 'Efectivo' AND created_at >= $2), 0) AS total`,
-    [user.username, session.opened_at],
+                 WHERE unit_id = $1 AND created_by = $2 AND payment_method = 'Efectivo' AND created_at >= $3), 0) AS total`,
+    [user.unit, user.username, session.opened_at],
   );
 
   const closing = Number(session.opening_amount) + Number(cashIn?.total ?? 0);
 
   await query(
-    `UPDATE cash_sessions SET status = 'closed', closing_amount = $1, closed_at = now() WHERE id = $2`,
-    [closing, session.id],
+    `UPDATE cash_sessions SET status = 'closed', closing_amount = $1, closed_at = now()
+     WHERE id = $2 AND unit_id = $3`,
+    [closing, session.id, user.unit],
   );
 
   revalidatePath('/caja');
@@ -76,15 +79,26 @@ export async function registerSale(formData: FormData) {
 
   await withTransaction(async (client) => {
     await client.query(
-      `INSERT INTO sales (client_name, ci_ruc, description, amount, currency, payment_method, stock_item_id, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [name, ciRuc, description, amount, currency, paymentMethod, stockItemId, user.username],
+      `INSERT INTO sales
+        (client_name, ci_ruc, description, amount, currency, payment_method, stock_item_id, created_by, unit_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        name,
+        ciRuc,
+        description,
+        amount,
+        currency,
+        paymentMethod,
+        stockItemId,
+        user.username,
+        user.unit,
+      ],
     );
 
     if (stockItemId) {
       await client.query(
-        `UPDATE stock_items SET quantity = GREATEST(quantity - 1, 0) WHERE id = $1`,
-        [stockItemId],
+        `UPDATE stock_items SET quantity = GREATEST(quantity - 1, 0) WHERE id = $1 AND unit_id = $2`,
+        [stockItemId, user.unit],
       );
     }
   });

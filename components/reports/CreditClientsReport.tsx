@@ -30,7 +30,7 @@ type AccountRow = {
   created_by: string;
 };
 
-export default async function CreditClientsReport({ params }: { params: ReportParams }) {
+export default async function CreditClientsReport({ params, unit }: { params: ReportParams; unit: string }) {
   const { from, to, user } = params;
 
   const rows = await query<ClientCredit>(
@@ -42,9 +42,10 @@ export default async function CreditClientsReport({ params }: { params: ReportPa
      WHERE ($1 = '' OR service_date >= $1::date)
        AND ($2 = '' OR service_date <= $2::date)
        AND ($3 = '' OR created_by = $3)
+       AND unit_id = $4
      GROUP BY client_id, client_name
      ORDER BY balance DESC, client_name`,
-    [from, to, user],
+    [from, to, user, unit],
   );
 
   const accounts = await query<AccountRow>(
@@ -54,8 +55,9 @@ export default async function CreditClientsReport({ params }: { params: ReportPa
      WHERE ($1 = '' OR service_date >= $1::date)
        AND ($2 = '' OR service_date <= $2::date)
        AND ($3 = '' OR created_by = $3)
+       AND unit_id = $4
      ORDER BY service_date DESC, id DESC`,
-    [from, to, user],
+    [from, to, user, unit],
   );
 
   const accountsByClient = new Map<string, AccountRow[]>();

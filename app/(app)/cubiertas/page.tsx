@@ -25,17 +25,18 @@ export default async function TiresPage({
 }: {
   searchParams: Promise<FlashParams & { q?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { msg, err, q = '' } = await searchParams;
   const term = q.trim();
 
   const tires = await query<TireRow>(
     `SELECT id, name, ci_ruc, phone, tire_size, tire_brand, quantity, notes, created_at
      FROM tire_records
-     WHERE $1 = '' OR name ILIKE '%' || $1 || '%' OR ci_ruc ILIKE '%' || $1 || '%'
-        OR tire_size ILIKE '%' || $1 || '%' OR tire_brand ILIKE '%' || $1 || '%'
+     WHERE unit_id = $2
+       AND ($1 = '' OR name ILIKE '%' || $1 || '%' OR ci_ruc ILIKE '%' || $1 || '%'
+        OR tire_size ILIKE '%' || $1 || '%' OR tire_brand ILIKE '%' || $1 || '%')
      ORDER BY name ASC, id DESC`,
-    [term],
+    [term, user.unit],
   );
 
   const totalUnits = tires.reduce((sum, tire) => sum + Number(tire.quantity), 0);

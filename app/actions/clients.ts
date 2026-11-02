@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { query, withTransaction } from '@/lib/db';
+import { one, query, withTransaction } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { flashError, flashSuccess } from '@/lib/flash';
 
@@ -76,13 +76,22 @@ export async function createClient(formData: FormData) {
 
   const clientId = await withTransaction(async (client) => {
     const countRow = await client.query<{ next: number }>(
-      `SELECT count(*)::int + 1 AS next FROM clients`,
+      `SELECT count(*)::int + 1 AS next FROM clients WHERE unit_id = $1`,
+      [user.unit],
     );
     const code = `CLI-${String(countRow.rows[0]?.next ?? 1).padStart(4, '0')}`;
     const inserted = await client.query<{ id: number }>(
-      `INSERT INTO clients (client_code, name, ci_ruc, phone, address, payment_condition)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [code, fields.name, fields.ci_ruc, fields.phone, fields.address, fields.payment_condition],
+      `INSERT INTO clients (client_code, name, ci_ruc, phone, address, payment_condition, unit_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [
+        code,
+        fields.name,
+        fields.ci_ruc,
+        fields.phone,
+        fields.address,
+        fields.payment_condition,
+        user.unit,
+      ],
     );
     const id = inserted.rows[0].id;
     for (const vehicle of vehicles) {
@@ -108,18 +117,32 @@ export async function createClient(formData: FormData) {
 }
 
 export async function updateClient(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const id = Number(formData.get('id'));
   const fields = clientFields(formData);
   if (!id || !fields.name) redirect(flashError('/clientes', 'Datos del cliente incompletos'));
+
+  const owned = await one<{ id: number }>(
+    'SELECT id FROM clients WHERE id = $1 AND unit_id = $2',
+    [id, user.unit],
+  );
+  if (!owned) redirect(flashError('/clientes', 'Cliente no encontrado'));
 
   const vehicles = parseVehicles(formData.get('vehicles'));
 
   await withTransaction(async (client) => {
     await client.query(
       `UPDATE clients SET name = $1, ci_ruc = $2, phone = $3, address = $4, payment_condition = $5
-       WHERE id = $6`,
-      [fields.name, fields.ci_ruc, fields.phone, fields.address, fields.payment_condition, id],
+       WHERE id = $6 AND unit_id = $7`,
+      [
+        fields.name,
+        fields.ci_ruc,
+        fields.phone,
+        fields.address,
+        fields.payment_condition,
+        id,
+        user.unit,
+      ],
     );
     await client.query(
       `UPDATE jobs SET client_name = $1 WHERE client_id = $2`,
@@ -144,14 +167,15 @@ export async function deleteClient(formData: FormData) {
   if (!id) redirect(flashError('/clientes', 'Cliente inválido'));
 
   const openDebt = await query<{ count: number }>(
-    'SELECT count(*)::int AS count FROM receivables WHERE client_id = $1 AND NOT paid',
-    [id],
+    `SELECT count(*)::int AS count FROM receivables
+     WHERE client_id = $1 AND unit_id = $2 AND NOT paid`,
+    [id, user.unit],
   );
   if ((openDebt[0]?.count ?? 0) > 0) {
     redirect(flashError('/clientes', 'El cliente tiene cuentas por cobrar abiertas'));
   }
 
-  await query('DELETE FROM clients WHERE id = $1', [id]);
+  await query('DELETE FROM clients WHERE id = $1 AND unit_id = $2', [id, user.unit]);
   revalidatePath('/clientes');
   redirect(flashSuccess('/clientes', `Cliente eliminado (${user.username})`));
 }

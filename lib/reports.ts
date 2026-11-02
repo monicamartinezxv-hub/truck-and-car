@@ -101,15 +101,16 @@ export function parseReportParams(params: Record<string, string | string[] | und
   };
 }
 
-export async function operatorOptions(): Promise<string[]> {
+export async function operatorOptions(unit: string): Promise<string[]> {
   const rows = await query<{ username: string }>(
-    `SELECT username FROM users WHERE username <> ''
-     UNION SELECT created_by FROM jobs WHERE created_by <> ''
-     UNION SELECT created_by FROM sales WHERE created_by <> ''
-     UNION SELECT created_by FROM debt_payments WHERE created_by <> ''
-     UNION SELECT created_by FROM tire_records WHERE created_by <> ''
-     UNION SELECT owner_username FROM cash_sessions WHERE owner_username <> ''
+    `SELECT username FROM users WHERE unit_id = $1 AND username <> ''
+     UNION SELECT created_by FROM jobs WHERE unit_id = $1 AND created_by <> ''
+     UNION SELECT created_by FROM sales WHERE unit_id = $1 AND created_by <> ''
+     UNION SELECT created_by FROM debt_payments WHERE unit_id = $1 AND created_by <> ''
+     UNION SELECT created_by FROM tire_records WHERE unit_id = $1 AND created_by <> ''
+     UNION SELECT owner_username FROM cash_sessions WHERE unit_id = $1 AND owner_username <> ''
      ORDER BY username`,
+    [unit],
   );
   return rows.map((row) => row.username);
 }

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import type { SessionUser } from '@/lib/auth';
 import type { NavItem } from '@/lib/nav';
+import { unitLabel } from '@/lib/tenant';
 
 const ICONS: Record<string, typeof Truck> = {
   '/': LayoutDashboard,
@@ -104,6 +105,9 @@ export default function Sidebar({ user, items }: { user: SessionUser; items: Nav
           <div className="px-2">
             <p className="text-sm font-semibold text-white">{user.username}</p>
             <p className="text-xs text-slate-400">{user.label}</p>
+            <p className="mt-1 inline-flex rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+              {unitLabel(user.unit)}
+            </p>
           </div>
           <form method="post" action="/api/logout">
             <button type="submit" className="btn-secondary w-full justify-start px-2 py-1.5 text-xs">

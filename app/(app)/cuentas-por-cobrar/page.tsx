@@ -47,7 +47,7 @@ export default async function ReceivablesPage({
 }: {
   searchParams: Promise<FlashParams & { tab?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { msg, err, tab = 'pendientes' } = await searchParams;
   const showPaid = tab === 'cobradas';
 
@@ -55,31 +55,35 @@ export default async function ReceivablesPage({
     `SELECT id, client_id, client_name, plate, description, service_date, currency,
             original_balance, applied_amount, balance, paid, payment_method
      FROM receivables
-     WHERE paid = $1
+     WHERE unit_id = $2 AND paid = $1
      ORDER BY service_date DESC, id DESC`,
-    [showPaid],
+    [showPaid, user.unit],
   );
 
   const totals = await query<{ pending: number; paid: number; clients: number }>(
     `SELECT
        COALESCE(sum(balance) FILTER (WHERE NOT paid), 0) AS pending,
        COALESCE(sum(applied_amount), 0) AS paid,
-       (SELECT count(DISTINCT client_id)::int FROM receivables WHERE NOT paid) AS clients
-     FROM receivables`,
+       (SELECT count(DISTINCT client_id)::int FROM receivables
+         WHERE unit_id = $1 AND NOT paid) AS clients
+     FROM receivables WHERE unit_id = $1`,
+    [user.unit],
   );
   const summary = totals[0];
 
   const clientDebts = await query<ClientDebt>(
     `SELECT client_id, client_name, sum(balance) AS total, count(*)::int AS accounts, max(currency) AS currency
      FROM receivables
-     WHERE NOT paid AND client_id IS NOT NULL AND balance > 0
+     WHERE unit_id = $1 AND NOT paid AND client_id IS NOT NULL AND balance > 0
      GROUP BY client_id, client_name
      ORDER BY total DESC`,
+    [user.unit],
   );
 
   const payments = await query<PaymentRow>(
     `SELECT id, client_name, amount, payment_type, payment_method, currency, created_at, created_by
-     FROM debt_payments ORDER BY created_at DESC, id DESC LIMIT 15`,
+     FROM debt_payments WHERE unit_id = $1 ORDER BY created_at DESC, id DESC LIMIT 15`,
+    [user.unit],
   );
 
   return (

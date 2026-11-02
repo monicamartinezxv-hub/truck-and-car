@@ -61,61 +61,64 @@ export default async function CashPage({
 
   const session = await one<Session>(
     `SELECT id, opening_amount, closing_amount, status, opened_at, closed_at
-     FROM cash_sessions WHERE owner_username = $1 AND status = 'open'
+     FROM cash_sessions WHERE owner_username = $1 AND unit_id = $2 AND status = 'open'
      ORDER BY opened_at DESC LIMIT 1`,
-    [user.username],
+    [user.username, user.unit],
   );
 
   const totals = await one<TodayTotals>(
     `SELECT
        COALESCE((SELECT sum(amount) FROM sales
-                 WHERE created_at >= date_trunc('day', now())
+                 WHERE unit_id = $2 AND created_at >= date_trunc('day', now())
                    AND ($1::text IS NULL OR created_by = $1)), 0) AS sales,
        COALESCE((SELECT sum(amount) FROM sales
-                 WHERE created_at >= date_trunc('day', now()) AND payment_method = 'Efectivo'
+                 WHERE unit_id = $2 AND created_at >= date_trunc('day', now()) AND payment_method = 'Efectivo'
                    AND ($1::text IS NULL OR created_by = $1)), 0) AS cash_sales,
        COALESCE((SELECT sum(total) FROM jobs
-                 WHERE service_date = current_date AND payment_condition = 'Contado'
+                 WHERE unit_id = $2 AND service_date = current_date AND payment_condition = 'Contado'
                    AND ($1::text IS NULL OR created_by = $1)), 0) AS jobs_cash,
        COALESCE((SELECT sum(amount) FROM debt_payments
-                 WHERE created_at >= date_trunc('day', now()) AND payment_method = 'Efectivo'
+                 WHERE unit_id = $2 AND created_at >= date_trunc('day', now()) AND payment_method = 'Efectivo'
                    AND ($1::text IS NULL OR created_by = $1)), 0) AS debt_cash,
        COALESCE((SELECT sum(amount) FROM debt_payments
-                 WHERE created_at >= date_trunc('day', now())
+                 WHERE unit_id = $2 AND created_at >= date_trunc('day', now())
                    AND ($1::text IS NULL OR created_by = $1)), 0) AS debt_total,
        (SELECT count(*)::int FROM sales
-        WHERE created_at >= date_trunc('day', now())
+        WHERE unit_id = $2 AND created_at >= date_trunc('day', now())
           AND ($1::text IS NULL OR created_by = $1)) AS sales_count`,
-    [scope],
+    [scope, user.unit],
   );
 
   const sales = await query<SaleRow>(
     `SELECT id, client_name, ci_ruc, description, amount, currency, payment_method,
             stock_item_id, created_by, created_at
      FROM sales
-     WHERE created_at >= date_trunc('day', now()) AND ($1::text IS NULL OR created_by = $1)
+     WHERE unit_id = $2 AND created_at >= date_trunc('day', now())
+       AND ($1::text IS NULL OR created_by = $1)
      ORDER BY created_at DESC, id DESC`,
-    [scope],
+    [scope, user.unit],
   );
 
   const payments = await query<PaymentRow>(
     `SELECT id, client_name, amount, payment_method, currency, created_by, created_at
      FROM debt_payments
-     WHERE created_at >= date_trunc('day', now()) AND ($1::text IS NULL OR created_by = $1)
+     WHERE unit_id = $2 AND created_at >= date_trunc('day', now())
+       AND ($1::text IS NULL OR created_by = $1)
      ORDER BY created_at DESC, id DESC`,
-    [scope],
+    [scope, user.unit],
   );
 
   const sessions = await query<Session>(
     `SELECT id, opening_amount, closing_amount, status, opened_at, closed_at
-     FROM cash_sessions WHERE owner_username = $1
+     FROM cash_sessions WHERE owner_username = $1 AND unit_id = $2
      ORDER BY opened_at DESC LIMIT 10`,
-    [user.username],
+    [user.username, user.unit],
   );
 
   const stock = await query<StockOption>(
     `SELECT id, product_name, quantity, price FROM stock_items
-     WHERE section = 'general' AND quantity > 0 ORDER BY product_name`,
+     WHERE unit_id = $1 AND section = 'general' AND quantity > 0 ORDER BY product_name`,
+    [user.unit],
   );
 
   const cashIn = Number(totals?.cash_sales ?? 0) + Number(totals?.jobs_cash ?? 0) + Number(totals?.debt_cash ?? 0);

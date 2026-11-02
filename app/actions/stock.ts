@@ -41,14 +41,31 @@ export async function saveStock(formData: FormData) {
     await query(
       `UPDATE stock_items
        SET product_name = $1, category = $2, quantity = $3, price = $4, supplier = $5, section = $6
-       WHERE id = $7`,
-      [fields.product_name, fields.category, fields.quantity, fields.price, fields.supplier, fields.section, fields.id],
+       WHERE id = $7 AND unit_id = $8`,
+      [
+        fields.product_name,
+        fields.category,
+        fields.quantity,
+        fields.price,
+        fields.supplier,
+        fields.section,
+        fields.id,
+        user.unit,
+      ],
     );
   } else {
     await query(
-      `INSERT INTO stock_items (product_name, category, quantity, price, supplier, section)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [fields.product_name, fields.category, fields.quantity, fields.price, fields.supplier, fields.section],
+      `INSERT INTO stock_items (product_name, category, quantity, price, supplier, section, unit_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        fields.product_name,
+        fields.category,
+        fields.quantity,
+        fields.price,
+        fields.supplier,
+        fields.section,
+        user.unit,
+      ],
     );
   }
 
@@ -70,7 +87,7 @@ export async function deleteStock(formData: FormData) {
     redirect(flashError(path, 'No tenés permiso para modificar este stock'));
   }
 
-  await query('DELETE FROM stock_items WHERE id = $1', [id]);
+  await query('DELETE FROM stock_items WHERE id = $1 AND unit_id = $2', [id, user.unit]);
   revalidatePath('/stock');
   revalidatePath('/stock/garaje14');
   redirect(flashSuccess(path, 'Producto eliminado'));

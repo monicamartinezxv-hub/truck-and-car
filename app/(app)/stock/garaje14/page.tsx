@@ -29,7 +29,8 @@ export default async function Garage14StockPage({
 
   const items = await query<StockRow>(
     `SELECT id, product_name, category, quantity, price, supplier
-     FROM stock_items WHERE section = 'garaje14' ORDER BY product_name`,
+     FROM stock_items WHERE unit_id = $1 AND section = 'garaje14' ORDER BY product_name`,
+    [user.unit],
   );
 
   const totalValue = items.reduce((sum, item) => sum + item.quantity * Number(item.price), 0);

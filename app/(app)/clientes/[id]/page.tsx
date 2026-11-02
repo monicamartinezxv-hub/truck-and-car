@@ -60,7 +60,10 @@ export default async function ClientDetailPage({
   const clientId = Number(id);
   if (!Number.isFinite(clientId)) notFound();
 
-  const client = await one<ClientDetail>('SELECT * FROM clients WHERE id = $1', [clientId]);
+  const client = await one<ClientDetail>(
+    'SELECT * FROM clients WHERE id = $1 AND unit_id = $2',
+    [clientId, user.unit],
+  );
   if (!client) notFound();
 
   const vehicles = await query<VehicleRow>(
@@ -69,13 +72,13 @@ export default async function ClientDetailPage({
   );
   const jobs = await query<JobRow>(
     `SELECT id, service_date, description, total, currency, payment_condition
-     FROM jobs WHERE client_id = $1 ORDER BY service_date DESC, id DESC`,
-    [clientId],
+     FROM jobs WHERE client_id = $1 AND unit_id = $2 ORDER BY service_date DESC, id DESC`,
+    [clientId, user.unit],
   );
   const receivables = await query<ReceivableRow>(
     `SELECT id, service_date, description, original_balance, balance, paid, currency
-     FROM receivables WHERE client_id = $1 ORDER BY service_date DESC, id DESC`,
-    [clientId],
+     FROM receivables WHERE client_id = $1 AND unit_id = $2 ORDER BY service_date DESC, id DESC`,
+    [clientId, user.unit],
   );
 
   const openDebt = receivables

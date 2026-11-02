@@ -39,21 +39,25 @@ export default async function EmployeesPage({
 }: {
   searchParams: Promise<FlashParams>;
 }) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const { msg, err } = await searchParams;
 
   const employees = await query<EmployeeRow>(
     `SELECT e.id, e.first_name, e.last_name, e.ci_ruc, e.phone, e.address, e.age, e.debt,
             COALESCE((SELECT sum(p.cost) FROM production_entries p WHERE p.employee_id = e.id), 0) AS production_total
      FROM employees e
+     WHERE e.unit_id = $1
      ORDER BY e.first_name, e.last_name`,
+    [user.unit],
   );
 
   const production = await query<ProductionRow>(
     `SELECT p.id, p.employee_id, (e.first_name || ' ' || e.last_name) AS employee_name,
             p.description, p.cost, p.created_at
      FROM production_entries p JOIN employees e ON e.id = p.employee_id
+     WHERE e.unit_id = $1
      ORDER BY p.created_at DESC, p.id DESC LIMIT 15`,
+    [user.unit],
   );
 
   const totalDebt = employees.reduce((sum, employee) => sum + Number(employee.debt), 0);
