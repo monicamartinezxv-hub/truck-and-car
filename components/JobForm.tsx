@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { CHECKLIST_ITEMS, CURRENCIES, PAYMENT_CONDITIONS } from '@/lib/constants';
 import { formatMoney } from '@/lib/format';
+import SubmitButton from '@/components/SubmitButton';
 
 export type ClientOption = { id: number; name: string; plate: string };
 export type StockOption = {
@@ -47,6 +48,7 @@ export default function JobForm({
   services,
   initial,
   submitLabel,
+  canEditPrices = false,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   clients: ClientOption[];
@@ -54,6 +56,7 @@ export default function JobForm({
   services: string[];
   initial?: JobInitial;
   submitLabel: string;
+  canEditPrices?: boolean;
 }) {
   const [items, setItems] = useState<ItemDraft[]>(initial?.items ?? []);
   const [checklist, setChecklist] = useState<Record<string, boolean>>(initial?.checklist ?? {});
@@ -357,16 +360,27 @@ export default function JobForm({
                       />
                     </td>
                     <td>
-                      <input
-                        type="number"
-                        min="0"
-                        step="any"
-                        className="input px-2 py-1"
-                        value={item.unit_price}
-                        onChange={(event) =>
-                          updateItem(item.key, { unit_price: Math.max(0, Number(event.target.value) || 0) })
-                        }
-                      />
+                      {canEditPrices || !item.stock_item_id ? (
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          className="input px-2 py-1"
+                          value={item.unit_price}
+                          onChange={(event) =>
+                            updateItem(item.key, { unit_price: Math.max(0, Number(event.target.value) || 0) })
+                          }
+                        />
+                      ) : (
+                        <input
+                          type="number"
+                          className="input cursor-not-allowed px-2 py-1 text-slate-400"
+                          value={item.unit_price}
+                          readOnly
+                          aria-readonly="true"
+                          title="Precio fijado por la administración"
+                        />
+                      )}
                     </td>
                     <td className="text-right font-semibold text-slate-200">
                       {formatMoney(item.quantity * item.unit_price)}
@@ -387,6 +401,12 @@ export default function JobForm({
             </table>
           )}
         </div>
+
+        {canEditPrices ? null : (
+          <p className="mt-3 text-xs text-slate-500">
+            Los precios de los artículos los define la administración y no se pueden modificar.
+          </p>
+        )}
 
         <p className="mt-3 text-right text-sm text-slate-400">
           Total:{' '}
@@ -425,9 +445,9 @@ export default function JobForm({
         </div>
       </section>
 
-      <button type="submit" className="btn-primary">
+      <SubmitButton className="btn-primary" pendingLabel="Guardando…">
         {submitLabel}
-      </button>
+      </SubmitButton>
     </form>
   );
 }

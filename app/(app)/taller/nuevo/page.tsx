@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { query } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { canEditPrices, requireUser } from '@/lib/auth';
 import { SERVICES } from '@/lib/constants';
 import PageHeader, { Flash } from '@/components/ui';
 import JobForm, { type ClientOption, type StockOption } from '@/components/JobForm';
@@ -13,7 +13,7 @@ export default async function NewJobPage({
 }: {
   searchParams: Promise<FlashParams>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { msg, err } = await searchParams;
 
   const clients = await query<ClientOption>(
@@ -41,7 +41,14 @@ export default async function NewJobPage({
         }
       />
       <Flash success={msg} error={err} />
-      <JobForm action={createJob} clients={clients} stock={stock} services={SERVICES} submitLabel="Guardar trabajo" />
+      <JobForm
+        action={createJob}
+        clients={clients}
+        stock={stock}
+        services={SERVICES}
+        submitLabel="Guardar trabajo"
+        canEditPrices={canEditPrices(user.role)}
+      />
     </div>
   );
 }

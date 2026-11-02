@@ -8,6 +8,11 @@ const MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 export type Role = 'admin' | 'admin2' | 'user';
 
+/** Admin y admin2 son los únicos perfiles que pueden fijar o modificar precios. */
+export function canEditPrices(role: Role): boolean {
+  return role === 'admin' || role === 'admin2';
+}
+
 export type SessionUser = {
   username: string;
   role: Role;

@@ -74,3 +74,13 @@ El esquema es idempotente (`CREATE TABLE IF NOT EXISTS`). Un cambio de esquema s
   `lib/reports.ts#operatorOptions` arma la lista con los usuarios y los valores ya usados.
 - La importación de `pg` en `app/actions/jobs.ts` es sólo de tipos (`PoolClient`), para no romper
   la regla de `'use server'` de exportar únicamente funciones async.
+- **Precios de artículos por rol**: `canEditPrices()` (`lib/auth.ts`) devuelve verdadero sólo para
+  `admin` y `admin2`. En `components/JobForm.tsx` el precio de un ítem que vino del stock es de
+  solo lectura para los operadores, y `app/actions/jobs.ts#withOfficialPrices` reescribe el
+  `unit_price` con `stock_items.price` en el servidor (create y update), así un POST manipulado
+  tampoco puede cambiar la tarifa. Los precios base se editan sólo desde `/stock` (admin) y
+  `/stock/garaje14` (admin y admin2, ver `saveStock`).
+- **Guardado sin duplicados**: las acciones ya terminan en `redirect` (POST/Redirect/GET), y tras
+  guardar un trabajo se vuelve a `/taller` (no al detalle con el formulario cargado), así un F5 no
+  reenvía nada. Todos los formularios usan `components/SubmitButton.tsx` (`useFormStatus`), que
+  deshabilita el botón mientras la acción está en curso para cortar el doble clic.

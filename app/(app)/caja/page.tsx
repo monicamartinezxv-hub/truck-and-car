@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/auth';
 import { CURRENCIES, PAYMENT_METHODS } from '@/lib/constants';
 import { formatDateTime, formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash, StatCard } from '@/components/ui';
+import SubmitButton from '@/components/SubmitButton';
 import { closeCash, openCash, registerSale } from '@/app/actions/cash';
 import type { FlashParams } from '@/lib/flash';
 
@@ -157,9 +158,9 @@ export default async function CashPage({
                 </span>
               </div>
               <form action={closeCash} className="pt-2">
-                <button type="submit" className="btn-danger w-full">
+                <SubmitButton className="btn-danger w-full" pendingLabel="Cerrando…">
                   Cerrar caja
-                </button>
+                </SubmitButton>
               </form>
             </div>
           ) : (
@@ -179,9 +180,9 @@ export default async function CashPage({
                   className="input"
                 />
               </div>
-              <button type="submit" className="btn-primary w-full">
+              <SubmitButton className="btn-primary w-full" pendingLabel="Abriendo…">
                 Abrir caja
-              </button>
+              </SubmitButton>
             </form>
           )}
         </section>
@@ -250,9 +251,9 @@ export default async function CashPage({
                 ))}
               </select>
             </div>
-            <button type="submit" className="btn-primary sm:col-span-2 sm:w-fit">
+            <SubmitButton className="btn-primary sm:col-span-2 sm:w-fit" pendingLabel="Registrando…">
               Registrar venta
-            </button>
+            </SubmitButton>
           </form>
         </section>
       </div>

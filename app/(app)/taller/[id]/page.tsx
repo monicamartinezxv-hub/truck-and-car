@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { one, query } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { canEditPrices, requireUser } from '@/lib/auth';
 import { SERVICES } from '@/lib/constants';
 import { formatDate, formatMoney } from '@/lib/format';
 import PageHeader, { Flash } from '@/components/ui';
@@ -53,7 +53,7 @@ export default async function JobDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<FlashParams>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { id } = await params;
   const { msg, err } = await searchParams;
   const jobId = Number(id);
@@ -138,6 +138,7 @@ export default async function JobDetailPage({
           items: initialItems,
         }}
         submitLabel="Guardar cambios"
+        canEditPrices={canEditPrices(user.role)}
       />
 
       <form action={deleteJob} className="mt-4">

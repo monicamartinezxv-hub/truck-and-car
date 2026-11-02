@@ -3,8 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import type { PoolClient } from 'pg';
-import { withTransaction } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { query, withTransaction } from '@/lib/db';
+import { canEditPrices, requireUser, type Role } from '@/lib/auth';
 import { flashError, flashSuccess } from '@/lib/flash';
 import { isDateISO, todayISO } from '@/lib/format';
 import { CHECKLIST_ITEMS, SERVICE_TO_STOCK_CATEGORY } from '@/lib/constants';
@@ -32,6 +32,30 @@ function parseItems(raw: FormDataEntryValue | null): JobItemInput[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * Los perfiles operativos no pueden alterar el precio de un artículo: se toma
+ * siempre el precio oficial cargado por la administración.
+ */
+async function withOfficialPrices(items: JobItemInput[], role: Role): Promise<JobItemInput[]> {
+  if (canEditPrices(role)) return items;
+
+  const stockIds = items
+    .map((item) => item.stock_item_id)
+    .filter((id): id is number => typeof id === 'number');
+  if (stockIds.length === 0) return items;
+
+  const rows = await query<{ id: number; price: number }>(
+    'SELECT id, price FROM stock_items WHERE id = ANY($1::int[])',
+    [stockIds],
+  );
+  const prices = new Map(rows.map((row) => [row.id, Number(row.price)]));
+
+  return items.map((item) => {
+    const official = item.stock_item_id ? prices.get(item.stock_item_id) : undefined;
+    return official === undefined ? item : { ...item, unit_price: official };
+  });
 }
 
 function parseChecklist(raw: FormDataEntryValue | null): Record<string, boolean> {
@@ -96,7 +120,7 @@ async function deductStock(client: PoolClient, items: JobItemInput[]) {
 
 export async function createJob(formData: FormData) {
   const user = await requireUser();
-  const items = parseItems(formData.get('items'));
+  const items = await withOfficialPrices(parseItems(formData.get('items')), user.role);
   const fields = jobFields(formData);
 
   if (items.length === 0) {
@@ -106,7 +130,7 @@ export async function createJob(formData: FormData) {
   const total = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
   const checklist = parseChecklist(formData.get('checklist'));
 
-  const jobId = await withTransaction(async (client) => {
+  await withTransaction(async (client) => {
     const clientRow = fields.client_id
       ? (
           await client.query<{ name: string; phone: string }>(
@@ -177,15 +201,16 @@ export async function createJob(formData: FormData) {
   revalidatePath('/taller');
   revalidatePath('/cuentas-por-cobrar');
   revalidatePath('/');
-  redirect(flashSuccess(`/taller/${jobId}`, 'Trabajo registrado'));
+  // Salir del formulario evita reenvíos (F5 o doble clic) que dupliquen el trabajo.
+  redirect(flashSuccess('/taller', 'Trabajo registrado'));
 }
 
 export async function updateJob(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const jobId = Number(formData.get('id'));
   if (!jobId) redirect(flashError('/taller', 'Trabajo inválido'));
 
-  const items = parseItems(formData.get('items'));
+  const items = await withOfficialPrices(parseItems(formData.get('items')), user.role);
   if (items.length === 0) {
     redirect(flashError(`/taller/${jobId}`, 'El trabajo necesita al menos un ítem'));
   }
@@ -275,7 +300,8 @@ export async function updateJob(formData: FormData) {
   revalidatePath('/taller');
   revalidatePath(`/taller/${jobId}`);
   revalidatePath('/cuentas-por-cobrar');
-  redirect(flashSuccess(`/taller/${jobId}`, 'Trabajo actualizado'));
+  // Se abandona el formulario tras confirmar, para que un F5 no reenvíe los datos.
+  redirect(flashSuccess('/taller', 'Trabajo actualizado'));
 }
 
 export async function deleteJob(formData: FormData) {

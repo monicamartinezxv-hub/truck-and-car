@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { PAYMENT_CONDITIONS } from '@/lib/constants';
+import SubmitButton from '@/components/SubmitButton';
 
 export type VehicleDraft = {
   id?: number;
@@ -172,9 +173,9 @@ export default function ClientForm({
         </div>
       </div>
 
-      <button type="submit" className="btn-primary">
+      <SubmitButton className="btn-primary" pendingLabel="Guardando…">
         {submitLabel}
-      </button>
+      </SubmitButton>
     </form>
   );
 }

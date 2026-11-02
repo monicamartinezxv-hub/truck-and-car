@@ -5,6 +5,7 @@ import { STOCK_CATEGORIES } from '@/lib/constants';
 import { formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash } from '@/components/ui';
 import ConfirmButton from '@/components/ConfirmButton';
+import SubmitButton from '@/components/SubmitButton';
 import { deleteStock, saveStock } from '@/app/actions/stock';
 import type { FlashParams } from '@/lib/flash';
 
@@ -82,9 +83,9 @@ export default async function Garage14StockPage({
                 </label>
                 <input id="price" name="price" type="number" min="0" step="any" defaultValue="0" className="input" />
               </div>
-              <button type="submit" className="btn-primary lg:col-span-1">
+              <SubmitButton className="btn-primary lg:col-span-1" pendingLabel="Guardando…">
                 Guardar
-              </button>
+              </SubmitButton>
             </form>
           </div>
         </details>
@@ -129,9 +130,9 @@ export default async function Garage14StockPage({
                             defaultValue={item.price}
                             className="input px-2 py-1"
                           />
-                          <button type="submit" className="btn-primary px-2 py-1 text-xs">
+                          <SubmitButton className="btn-primary px-2 py-1 text-xs" pendingLabel="Guardando…">
                             Guardar
-                          </button>
+                          </SubmitButton>
                         </form>
                       </details>
                       <form action={deleteStock}>

@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth';
 import { formatDate, formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash, StatCard } from '@/components/ui';
 import ConfirmButton from '@/components/ConfirmButton';
+import SubmitButton from '@/components/SubmitButton';
 import {
   addProduction,
   deleteEmployee,
@@ -121,9 +122,9 @@ export default async function EmployeesPage({
               </label>
               <input id="address" name="address" className="input" />
             </div>
-            <button type="submit" className="btn-primary lg:col-span-3 lg:w-fit">
+            <SubmitButton className="btn-primary lg:col-span-3 lg:w-fit" pendingLabel="Guardando…">
               Guardar funcionario
-            </button>
+            </SubmitButton>
           </form>
         </div>
       </details>
@@ -177,9 +178,9 @@ export default async function EmployeesPage({
                             placeholder="Costo"
                             className="input w-24 px-2 py-1"
                           />
-                          <button type="submit" className="btn-primary px-2 py-1 text-xs">
+                          <SubmitButton className="btn-primary px-2 py-1 text-xs" pendingLabel="Guardando…">
                             Agregar
-                          </button>
+                          </SubmitButton>
                         </form>
                       </details>
 
@@ -201,9 +202,9 @@ export default async function EmployeesPage({
                             className="input px-2 py-1"
                           />
                           <input name="address" defaultValue={employee.address} className="input px-2 py-1 sm:col-span-2" placeholder="Dirección" />
-                          <button type="submit" className="btn-primary px-2 py-1 text-xs">
+                          <SubmitButton className="btn-primary px-2 py-1 text-xs" pendingLabel="Guardando…">
                             Guardar
-                          </button>
+                          </SubmitButton>
                         </form>
                       </details>
 

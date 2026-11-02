@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { formatDate, formatNumber } from '@/lib/format';
 import PageHeader, { EmptyState, Flash, StatCard } from '@/components/ui';
 import ConfirmButton from '@/components/ConfirmButton';
+import SubmitButton from '@/components/SubmitButton';
 import { deleteTire, saveTire } from '@/app/actions/tires';
 import type { FlashParams } from '@/lib/flash';
 
@@ -115,9 +116,9 @@ export default async function TiresPage({
               </label>
               <input id="notes" name="notes" className="input" />
             </div>
-            <button type="submit" className="btn-primary lg:col-span-4 lg:w-fit">
+            <SubmitButton className="btn-primary lg:col-span-4 lg:w-fit" pendingLabel="Guardando…">
               Guardar
-            </button>
+            </SubmitButton>
           </form>
         </div>
       </details>
@@ -180,9 +181,9 @@ export default async function TiresPage({
                             placeholder="Marca"
                           />
                           <input name="notes" defaultValue={tire.notes} className="input px-2 py-1" placeholder="Notas" />
-                          <button type="submit" className="btn-primary px-2 py-1 text-xs">
+                          <SubmitButton className="btn-primary px-2 py-1 text-xs" pendingLabel="Guardando…">
                             Guardar
-                          </button>
+                          </SubmitButton>
                         </form>
                       </details>
                       <form action={deleteTire}>

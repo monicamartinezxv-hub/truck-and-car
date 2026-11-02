@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { PAYMENT_METHODS } from '@/lib/constants';
 import { daysSince, formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash, StatCard } from '@/components/ui';
+import SubmitButton from '@/components/SubmitButton';
 import { applyClientPayment, registerPayment } from '@/app/actions/receivables';
 import type { FlashParams } from '@/lib/flash';
 
@@ -131,9 +132,9 @@ export default async function ReceivablesPage({
                   ))}
                 </select>
               </div>
-              <button type="submit" className="btn-primary sm:col-span-4 sm:w-fit">
+              <SubmitButton className="btn-primary sm:col-span-4 sm:w-fit" pendingLabel="Registrando…">
                 Registrar abono
-              </button>
+              </SubmitButton>
               <p className="text-xs text-slate-500 sm:col-span-4">
                 El abono se aplica primero a las cuentas más antiguas.
               </p>
@@ -250,9 +251,9 @@ export default async function ReceivablesPage({
                                 ))}
                               </select>
                             </div>
-                            <button type="submit" className="btn-primary px-2 py-1 text-xs">
+                            <SubmitButton className="btn-primary px-2 py-1 text-xs" pendingLabel="Cobrando…">
                               Cobrar
-                            </button>
+                            </SubmitButton>
                           </form>
                         </details>
                       </td>

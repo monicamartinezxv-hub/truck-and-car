@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
 import PageHeader, { EmptyState, Flash } from '@/components/ui';
 import ConfirmButton from '@/components/ConfirmButton';
+import SubmitButton from '@/components/SubmitButton';
 import { createUser, deleteUser, updateUser } from '@/app/actions/users';
 import type { FlashParams } from '@/lib/flash';
 
@@ -75,9 +76,9 @@ export default async function UsersPage({
                 <option value="admin">Administrador</option>
               </select>
             </div>
-            <button type="submit" className="btn-primary lg:col-span-4 lg:w-fit">
+            <SubmitButton className="btn-primary lg:col-span-4 lg:w-fit" pendingLabel="Guardando…">
               Crear usuario
-            </button>
+            </SubmitButton>
           </form>
         </div>
       </details>
@@ -131,9 +132,9 @@ export default async function UsersPage({
                             placeholder="Nueva contraseña"
                             minLength={4}
                           />
-                          <button type="submit" className="btn-primary px-2 py-1 text-xs">
+                          <SubmitButton className="btn-primary px-2 py-1 text-xs" pendingLabel="Guardando…">
                             Guardar
-                          </button>
+                          </SubmitButton>
                         </form>
                       </details>
 
