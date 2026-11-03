@@ -1,6 +1,8 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { query } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { canEditPrices } from '@/lib/auth';
+import { requireModule } from '@/lib/nav';
+import { UNIT_MAIN } from '@/lib/tenant';
 import { STOCK_CATEGORIES } from '@/lib/constants';
 import { formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash } from '@/components/ui';
@@ -23,13 +25,16 @@ export default async function StockPage({
 }: {
   searchParams: Promise<FlashParams>;
 }) {
-  const user = await requireAdmin();
+  const user = await requireModule('/stock');
   const { msg, err } = await searchParams;
+  // Los precios base siguen siendo potestad del administrador (admin / admin2).
+  const canSetPrice = canEditPrices(user.role);
 
+  // Inventario general de Casa Central: nunca mezcla artículos de Garaje 14.
   const items = await query<StockRow>(
     `SELECT id, product_name, category, quantity, price, supplier
      FROM stock_items WHERE unit_id = $1 AND section = 'general' ORDER BY product_name`,
-    [user.unit],
+    [UNIT_MAIN],
   );
 
   const lowStock = items.filter((item) => item.quantity < 5).length;
@@ -77,12 +82,16 @@ export default async function StockPage({
               </label>
               <input id="quantity" name="quantity" type="number" min="0" defaultValue="0" className="input" />
             </div>
-            <div>
-              <label className="label" htmlFor="price">
-                Precio
-              </label>
-              <input id="price" name="price" type="number" min="0" step="any" defaultValue="0" className="input" />
-            </div>
+            {canSetPrice ? (
+              <div>
+                <label className="label" htmlFor="price">
+                  Precio
+                </label>
+                <input id="price" name="price" type="number" min="0" step="any" defaultValue="0" className="input" />
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">El precio lo define el administrador.</p>
+            )}
             <div className="lg:col-span-2">
               <label className="label" htmlFor="supplier">
                 Proveedor
@@ -137,14 +146,16 @@ export default async function StockPage({
                             defaultValue={item.quantity}
                             className="input px-2 py-1"
                           />
-                          <input
-                            name="price"
-                            type="number"
-                            min="0"
-                            step="any"
-                            defaultValue={item.price}
-                            className="input px-2 py-1"
-                          />
+                          {canSetPrice ? (
+                            <input
+                              name="price"
+                              type="number"
+                              min="0"
+                              step="any"
+                              defaultValue={item.price}
+                              className="input px-2 py-1"
+                            />
+                          ) : null}
                           <input name="supplier" defaultValue={item.supplier} className="input px-2 py-1" />
                           <SubmitButton className="btn-primary px-2 py-1 text-xs" pendingLabel="Guardando…">
                             Guardar

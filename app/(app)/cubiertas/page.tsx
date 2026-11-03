@@ -1,6 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { query } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { requireModule } from '@/lib/nav';
 import { formatDate, formatNumber } from '@/lib/format';
 import PageHeader, { EmptyState, Flash, StatCard } from '@/components/ui';
 import ConfirmButton from '@/components/ConfirmButton';
@@ -25,7 +25,7 @@ export default async function TiresPage({
 }: {
   searchParams: Promise<FlashParams & { q?: string }>;
 }) {
-  const user = await requireUser();
+  const user = await requireModule('/cubiertas');
   const { msg, err, q = '' } = await searchParams;
   const term = q.trim();
 

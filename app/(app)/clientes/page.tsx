@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Plus, Search } from 'lucide-react';
 import { query } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { requireModule } from '@/lib/nav';
 import { formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash } from '@/components/ui';
 import ClientForm from '@/components/ClientForm';
@@ -25,7 +25,7 @@ export default async function ClientsPage({
 }: {
   searchParams: Promise<FlashParams & { q?: string }>;
 }) {
-  const user = await requireUser();
+  const user = await requireModule('/clientes');
   const { q = '', msg, err } = await searchParams;
   const term = q.trim();
 

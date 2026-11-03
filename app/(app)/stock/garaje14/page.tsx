@@ -1,6 +1,8 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { query } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { canEditPrices } from '@/lib/auth';
+import { requireModule } from '@/lib/nav';
+import { UNIT_GARAGE } from '@/lib/tenant';
 import { STOCK_CATEGORIES } from '@/lib/constants';
 import { formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash } from '@/components/ui';
@@ -23,14 +25,17 @@ export default async function Garage14StockPage({
 }: {
   searchParams: Promise<FlashParams>;
 }) {
-  const user = await requireUser();
+  const user = await requireModule('/stock/garaje14');
   const { msg, err } = await searchParams;
-  const canEdit = ['admin', 'admin2'].includes(user.role);
+  // El inventario de Garaje 14 lo manejan sus usuarios y el administrador.
+  const canEdit = user.role === 'admin' || user.unit === UNIT_GARAGE;
+  const canSetPrice = canEditPrices(user.role);
 
+  // Inventario propio de Garaje 14: nunca mezcla artículos de Casa Central.
   const items = await query<StockRow>(
     `SELECT id, product_name, category, quantity, price, supplier
      FROM stock_items WHERE unit_id = $1 AND section = 'garaje14' ORDER BY product_name`,
-    [user.unit],
+    [UNIT_GARAGE],
   );
 
   const totalValue = items.reduce((sum, item) => sum + item.quantity * Number(item.price), 0);
@@ -78,12 +83,16 @@ export default async function Garage14StockPage({
                 </label>
                 <input id="quantity" name="quantity" type="number" min="0" defaultValue="0" className="input" />
               </div>
-              <div>
-                <label className="label" htmlFor="price">
-                  Precio
-                </label>
-                <input id="price" name="price" type="number" min="0" step="any" defaultValue="0" className="input" />
-              </div>
+              {canSetPrice ? (
+                <div>
+                  <label className="label" htmlFor="price">
+                    Precio
+                  </label>
+                  <input id="price" name="price" type="number" min="0" step="any" defaultValue="0" className="input" />
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">El precio lo define el administrador.</p>
+              )}
               <SubmitButton className="btn-primary lg:col-span-1" pendingLabel="Guardando…">
                 Guardar
               </SubmitButton>
@@ -123,14 +132,16 @@ export default async function Garage14StockPage({
                             defaultValue={item.quantity}
                             className="input px-2 py-1"
                           />
-                          <input
-                            name="price"
-                            type="number"
-                            min="0"
-                            step="any"
-                            defaultValue={item.price}
-                            className="input px-2 py-1"
-                          />
+                          {canSetPrice ? (
+                            <input
+                              name="price"
+                              type="number"
+                              min="0"
+                              step="any"
+                              defaultValue={item.price}
+                              className="input px-2 py-1"
+                            />
+                          ) : null}
                           <SubmitButton className="btn-primary px-2 py-1 text-xs" pendingLabel="Guardando…">
                             Guardar
                           </SubmitButton>

@@ -1,5 +1,5 @@
 import { one, query } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { requireModule } from '@/lib/nav';
 import { CURRENCIES, PAYMENT_METHODS } from '@/lib/constants';
 import { formatDateTime, formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash, StatCard } from '@/components/ui';
@@ -55,7 +55,7 @@ export default async function CashPage({
 }: {
   searchParams: Promise<FlashParams>;
 }) {
-  const user = await requireUser();
+  const user = await requireModule('/caja');
   const { msg, err } = await searchParams;
   const scope = user.role === 'admin' ? null : user.username;
 

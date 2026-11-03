@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { authenticate, createSession } from '@/lib/auth';
+import { homeHref } from '@/lib/nav';
 
 const INVALID = '/login?err=Usuario%20o%20contrase%C3%B1a%20incorrectos';
 
@@ -13,5 +14,5 @@ export async function POST(request: Request) {
   if (!user) redirect(INVALID);
 
   await createSession(user);
-  redirect('/');
+  redirect(homeHref(user.username, user.role));
 }

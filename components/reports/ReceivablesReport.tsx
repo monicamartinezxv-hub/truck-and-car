@@ -36,7 +36,7 @@ export default async function ReceivablesReport({ params, unit }: { params: Repo
      WHERE ($1 = '' OR service_date >= $1::date)
        AND ($2 = '' OR service_date <= $2::date)
        AND ($3 = '' OR created_by = $3)
-       AND unit_id = $4
+       AND ($4 = '' OR unit_id = $4)
      ORDER BY service_date`,
     [from, to, user, unit],
   );

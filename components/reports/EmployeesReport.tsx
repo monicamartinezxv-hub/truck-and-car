@@ -35,7 +35,7 @@ export default async function EmployeesReport({ params, unit }: { params: Report
                 WHERE ($1 = '' OR created_at >= $1::date)
                   AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
                 GROUP BY employee_id) p ON p.employee_id = e.id
-     WHERE e.unit_id = $3
+     WHERE ($3 = '' OR e.unit_id = $3)
      ORDER BY production DESC, e.first_name`,
     [from, to, unit],
   );
@@ -43,7 +43,7 @@ export default async function EmployeesReport({ params, unit }: { params: Report
   const production = await query<ProductionRow>(
     `SELECT id, employee_id, description, cost, created_at
      FROM production_entries
-     WHERE employee_id IN (SELECT id FROM employees WHERE unit_id = $3)
+     WHERE employee_id IN (SELECT id FROM employees WHERE ($3 = '' OR unit_id = $3))
        AND ($1 = '' OR created_at >= $1::date)
        AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
      ORDER BY created_at DESC, id DESC`,

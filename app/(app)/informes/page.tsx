@@ -10,7 +10,7 @@ import {
   Wallet,
   Wrench,
 } from 'lucide-react';
-import { requireAdmin } from '@/lib/auth';
+import { requireModule } from '@/lib/nav';
 import PageHeader from '@/components/ui';
 import ReportActions from '@/components/reports/ReportActions';
 import ReportFilters from '@/components/reports/ReportFilters';
@@ -22,7 +22,14 @@ import EmployeesReport from '@/components/reports/EmployeesReport';
 import ReceivablesReport from '@/components/reports/ReceivablesReport';
 import CashReport from '@/components/reports/CashReport';
 import JobsReport from '@/components/reports/JobsReport';
-import { REPORTS, findReport, operatorOptions, parseReportParams, periodLabel } from '@/lib/reports';
+import {
+  REPORTS,
+  findReport,
+  operatorOptions,
+  parseReportParams,
+  periodLabel,
+  reportScope,
+} from '@/lib/reports';
 
 const ICONS: Record<string, typeof FileBarChart> = {
   cliente: UserSearch,
@@ -40,9 +47,11 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const user = await requireAdmin();
+  const user = await requireModule('/informes');
   const params = parseReportParams(await searchParams);
   const meta = findReport(params.report);
+  // El administrador principal audita todas las unidades; el resto, la propia.
+  const scope = reportScope(user);
 
   if (!meta) {
     return (
@@ -76,7 +85,7 @@ export default async function ReportsPage({
     );
   }
 
-  const operators = meta.operators ? await operatorOptions(user.unit) : [];
+  const operators = meta.operators ? await operatorOptions(scope) : [];
 
   return (
     <div>
@@ -98,14 +107,14 @@ export default async function ReportsPage({
 
       <ReportFilters meta={meta} params={params} operators={operators} />
 
-      {meta.id === 'cliente' ? <ClientDetailReport params={params} unit={user.unit} /> : null}
-      {meta.id === 'cubiertas' ? <TiresReport params={params} unit={user.unit} /> : null}
-      {meta.id === 'gestion' ? <ClientMovementsReport params={params} unit={user.unit} /> : null}
-      {meta.id === 'credito' ? <CreditClientsReport params={params} unit={user.unit} /> : null}
-      {meta.id === 'funcionarios' ? <EmployeesReport params={params} unit={user.unit} /> : null}
-      {meta.id === 'cuentas' ? <ReceivablesReport params={params} unit={user.unit} /> : null}
-      {meta.id === 'caja' ? <CashReport params={params} unit={user.unit} /> : null}
-      {meta.id === 'trabajos' ? <JobsReport params={params} unit={user.unit} /> : null}
+      {meta.id === 'cliente' ? <ClientDetailReport params={params} unit={scope} /> : null}
+      {meta.id === 'cubiertas' ? <TiresReport params={params} unit={scope} /> : null}
+      {meta.id === 'gestion' ? <ClientMovementsReport params={params} unit={scope} /> : null}
+      {meta.id === 'credito' ? <CreditClientsReport params={params} unit={scope} /> : null}
+      {meta.id === 'funcionarios' ? <EmployeesReport params={params} unit={scope} /> : null}
+      {meta.id === 'cuentas' ? <ReceivablesReport params={params} unit={scope} /> : null}
+      {meta.id === 'caja' ? <CashReport params={params} unit={scope} /> : null}
+      {meta.id === 'trabajos' ? <JobsReport params={params} unit={scope} /> : null}
     </div>
   );
 }

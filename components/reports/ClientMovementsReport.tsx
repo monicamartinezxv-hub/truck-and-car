@@ -50,19 +50,19 @@ export default async function ClientMovementsReport({ params, unit }: { params: 
                 WHERE ($1 = '' OR service_date >= $1::date)
                   AND ($2 = '' OR service_date <= $2::date)
                   AND ($3 = '' OR created_by = $3)
-                  AND unit_id = $4
+                  AND ($4 = '' OR unit_id = $4)
                 GROUP BY client_id) j ON j.client_id = c.id
      LEFT JOIN (SELECT client_id, sum(amount) AS payments_total
                 FROM debt_payments
                 WHERE ($1 = '' OR created_at >= $1::date)
                   AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
                   AND ($3 = '' OR created_by = $3)
-                  AND unit_id = $4
+                  AND ($4 = '' OR unit_id = $4)
                 GROUP BY client_id) p ON p.client_id = c.id
      LEFT JOIN (SELECT client_id, sum(balance) AS balance
-                FROM receivables WHERE NOT paid AND unit_id = $4 AND ($3 = '' OR created_by = $3)
+                FROM receivables WHERE NOT paid AND ($4 = '' OR unit_id = $4) AND ($3 = '' OR created_by = $3)
                 GROUP BY client_id) r ON r.client_id = c.id
-     WHERE c.unit_id = $4 AND (COALESCE(j.jobs_count, 0) > 0
+     WHERE ($4 = '' OR c.unit_id = $4) AND (COALESCE(j.jobs_count, 0) > 0
         OR COALESCE(p.payments_total, 0) > 0
         OR COALESCE(r.balance, 0) > 0)
      ORDER BY COALESCE(j.jobs_total, 0) DESC, c.name`,
@@ -76,7 +76,7 @@ export default async function ClientMovementsReport({ params, unit }: { params: 
        AND ($1 = '' OR service_date >= $1::date)
        AND ($2 = '' OR service_date <= $2::date)
        AND ($3 = '' OR created_by = $3)
-       AND unit_id = $4
+       AND ($4 = '' OR unit_id = $4)
      ORDER BY service_date DESC, id DESC`,
     [from, to, user, unit],
   );
@@ -88,7 +88,7 @@ export default async function ClientMovementsReport({ params, unit }: { params: 
        AND ($1 = '' OR created_at >= $1::date)
        AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
        AND ($3 = '' OR created_by = $3)
-       AND unit_id = $4
+       AND ($4 = '' OR unit_id = $4)
      ORDER BY created_at DESC`,
     [from, to, user, unit],
   );

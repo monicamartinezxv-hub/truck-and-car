@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { query } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { requireModule } from '@/lib/nav';
 import { PAYMENT_METHODS } from '@/lib/constants';
 import { daysSince, formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash, StatCard } from '@/components/ui';
@@ -47,7 +47,7 @@ export default async function ReceivablesPage({
 }: {
   searchParams: Promise<FlashParams & { tab?: string }>;
 }) {
-  const user = await requireUser();
+  const user = await requireModule('/cuentas-por-cobrar');
   const { msg, err, tab = 'pendientes' } = await searchParams;
   const showPaid = tab === 'cobradas';
 

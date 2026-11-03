@@ -34,6 +34,7 @@ const ICONS: Record<string, typeof Truck> = {
   '/caja': Banknote,
   '/funcionarios': HardHat,
   '/informes': BarChart3,
+  '/cierre-caja': BarChart3,
   '/usuarios': UserCog,
 };
 

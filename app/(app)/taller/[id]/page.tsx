@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { one, query } from '@/lib/db';
-import { canEditPrices, requireUser } from '@/lib/auth';
+import { canEditPrices } from '@/lib/auth';
+import { requireModule } from '@/lib/nav';
 import { SERVICES } from '@/lib/constants';
 import { formatDate, formatMoney } from '@/lib/format';
 import PageHeader, { Flash } from '@/components/ui';
@@ -53,7 +54,7 @@ export default async function JobDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<FlashParams>;
 }) {
-  const user = await requireUser();
+  const user = await requireModule('/taller');
   const { id } = await params;
   const { msg, err } = await searchParams;
   const jobId = Number(id);

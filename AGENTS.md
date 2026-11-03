@@ -28,8 +28,12 @@ El esquema es idempotente (`CREATE TABLE IF NOT EXISTS`). Un cambio de esquema s
 | `usergomeria` | `4321` | user | operador |
 | `garaje14` | `4213` | user | módulos básicos |
 
-`garaje14` y `admin2` sólo ven Dashboard, Clientes, Taller, Caja y Stock de Artículos
-(`lib/nav.ts`). Las contraseñas se guardan con scrypt (`lib/auth.ts`).
+`lib/nav.ts` decide qué módulos ve cada usuario y `requireModule(href)` bloquea la ruta en el
+servidor cuando el menú la oculta (las páginas lo llaman en lugar de `requireUser`): `admin` ve
+todo; `usergomeria`/`usertaller` ven **Stock e Inventario** pero no **Stock de Artículos**;
+`garaje14` ve sólo **Stock de Artículos**; `admin2` ve únicamente **Cierre de Caja**
+(`/cierre-caja`) y entra ahí directo tras el login (`homeHref`). El plan está en
+`docs/plan-acceso-modulos-stock.md`. Las contraseñas se guardan con scrypt (`lib/auth.ts`).
 
 ## Verificación
 
@@ -78,8 +82,8 @@ El esquema es idempotente (`CREATE TABLE IF NOT EXISTS`). Un cambio de esquema s
   `admin` y `admin2`. En `components/JobForm.tsx` el precio de un ítem que vino del stock es de
   solo lectura para los operadores, y `app/actions/jobs.ts#withOfficialPrices` reescribe el
   `unit_price` con `stock_items.price` en el servidor (create y update), así un POST manipulado
-  tampoco puede cambiar la tarifa. Los precios base se editan sólo desde `/stock` (admin) y
-  `/stock/garaje14` (admin y admin2, ver `saveStock`).
+  tampoco puede cambiar la tarifa. Los precios base se editan sólo desde `/stock` y
+  `/stock/garaje14`, y únicamente con `admin`/`admin2` (ver `saveStock`).
 - **Guardado sin duplicados**: las acciones ya terminan en `redirect` (POST/Redirect/GET), y tras
   guardar un trabajo se vuelve a `/taller` (no al detalle con el formulario cargado), así un F5 no
   reenvía nada. Todos los formularios usan `components/SubmitButton.tsx` (`useFormStatus`), que
@@ -92,6 +96,14 @@ El esquema es idempotente (`CREATE TABLE IF NOT EXISTS`). Un cambio de esquema s
   el padre, que ya está filtrado. Una cookie sin unidad se invalida, así que un despliegue de este
   cambio obliga a iniciar sesión de nuevo. El detalle del plan está en
   `docs/plan-aislamiento-unidades.md`.
-- **Alcance por operario dentro de la unidad**: la caja del admin muestra el consolidado de *su*
-  unidad (`created_by`), nunca el de la otra. `stock_items.section` sigue separando `general` de
-  `garaje14`, pero el aislamiento real es `unit_id`.
+- **Inventarios separados por unidad**: `/stock` trabaja siempre con `unit_id = 'principal'` +
+  `section = 'general'`, y `/stock/garaje14` con `unit_id = 'garaje14'` + `section = 'garaje14'`.
+  `app/actions/stock.ts` resuelve la unidad desde la sección (nunca desde el formulario), exige que
+  el usuario pertenezca a esa unidad (o sea `admin`) y filtra `UPDATE`/`DELETE` por
+  `id + unit_id + section`: los dos inventarios no se mezclan nunca. El precio base sólo lo cambian
+  `admin`/`admin2` (`canEditPrices`); para el resto el precio enviado se ignora.
+- **Alcance de los informes**: `reportScope(session)` (`lib/reports.ts`) devuelve la unidad del
+  usuario y `''` para el rol `admin`. Con `''` las consultas de los ocho informes se leen como
+  `($n = '' OR unit_id = $n)` y `operatorOptions('')` lista los operarios de todas las unidades, así
+  el administrador audita cualquier unidad (por ejemplo `user=garaje14`) desde Informes y Reportes.
+  El `Cierre de Caja` de admin2 es el informe `caja` con unidad y operario `garaje14` fijos.

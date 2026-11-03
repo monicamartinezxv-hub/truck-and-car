@@ -42,7 +42,7 @@ export default async function CreditClientsReport({ params, unit }: { params: Re
      WHERE ($1 = '' OR service_date >= $1::date)
        AND ($2 = '' OR service_date <= $2::date)
        AND ($3 = '' OR created_by = $3)
-       AND unit_id = $4
+       AND ($4 = '' OR unit_id = $4)
      GROUP BY client_id, client_name
      ORDER BY balance DESC, client_name`,
     [from, to, user, unit],
@@ -55,7 +55,7 @@ export default async function CreditClientsReport({ params, unit }: { params: Re
      WHERE ($1 = '' OR service_date >= $1::date)
        AND ($2 = '' OR service_date <= $2::date)
        AND ($3 = '' OR created_by = $3)
-       AND unit_id = $4
+       AND ($4 = '' OR unit_id = $4)
      ORDER BY service_date DESC, id DESC`,
     [from, to, user, unit],
   );

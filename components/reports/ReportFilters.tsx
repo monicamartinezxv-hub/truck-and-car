@@ -11,10 +11,13 @@ export default function ReportFilters({
   meta,
   params,
   operators,
+  basePath = '/informes',
 }: {
   meta: ReportMeta;
   params: ReportParams;
   operators: string[];
+  /** Ruta que recibe los filtros (el módulo Cierre de Caja usa la suya). */
+  basePath?: string;
 }) {
   const router = useRouter();
   const active = Boolean(params.from || params.to || params.user || params.q);
@@ -22,12 +25,12 @@ export default function ReportFilters({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const search = new URLSearchParams({ report: meta.id });
+    const search = new URLSearchParams(basePath === '/informes' ? { report: meta.id } : {});
     FILTER_KEYS.forEach((key) => {
       const value = String(data.get(key) ?? '').trim();
       if (value) search.set(key, value);
     });
-    router.push(`/informes?${search.toString()}`);
+    router.push(`${basePath}?${search.toString()}`);
   }
 
   return (

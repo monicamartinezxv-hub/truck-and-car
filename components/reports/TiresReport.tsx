@@ -36,7 +36,7 @@ export default async function TiresReport({ params, unit }: { params: ReportPara
        AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
        AND ($3 = '' OR created_by = $3)
        AND ($4 = '' OR name ILIKE '%' || $4 || '%' OR ci_ruc ILIKE '%' || $4 || '%')
-       AND unit_id = $5
+       AND ($5 = '' OR unit_id = $5)
      ORDER BY created_at DESC, id DESC`,
     [from, to, user, q, unit],
   );

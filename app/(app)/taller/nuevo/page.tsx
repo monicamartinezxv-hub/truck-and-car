@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { query } from '@/lib/db';
-import { canEditPrices, requireUser } from '@/lib/auth';
+import { canEditPrices } from '@/lib/auth';
+import { requireModule } from '@/lib/nav';
 import { SERVICES } from '@/lib/constants';
 import PageHeader, { Flash } from '@/components/ui';
 import JobForm, { type ClientOption, type StockOption } from '@/components/JobForm';
@@ -13,7 +14,7 @@ export default async function NewJobPage({
 }: {
   searchParams: Promise<FlashParams>;
 }) {
-  const user = await requireUser();
+  const user = await requireModule('/taller');
   const { msg, err } = await searchParams;
 
   const clients = await query<ClientOption>(

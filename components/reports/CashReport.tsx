@@ -60,7 +60,7 @@ export default async function CashReport({ params, unit }: { params: ReportParam
      WHERE ($1 = '' OR opened_at >= $1::date)
        AND ($2 = '' OR opened_at < ($2::date + interval '1 day'))
        AND ($3 = '' OR owner_username = $3)
-       AND unit_id = $4
+       AND ($4 = '' OR unit_id = $4)
      ORDER BY opened_at DESC`,
     [from, to, user, unit],
   );
@@ -72,7 +72,7 @@ export default async function CashReport({ params, unit }: { params: ReportParam
      WHERE ($1 = '' OR created_at >= $1::date)
        AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
        AND ($3 = '' OR created_by = $3)
-       AND unit_id = $4
+       AND ($4 = '' OR unit_id = $4)
      GROUP BY created_by`,
     [from, to, user, unit],
   );
@@ -84,7 +84,7 @@ export default async function CashReport({ params, unit }: { params: ReportParam
      WHERE ($1 = '' OR created_at >= $1::date)
        AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
        AND ($3 = '' OR created_by = $3)
-       AND unit_id = $4
+       AND ($4 = '' OR unit_id = $4)
      GROUP BY created_by`,
     [from, to, user, unit],
   );
@@ -96,7 +96,7 @@ export default async function CashReport({ params, unit }: { params: ReportParam
        AND ($1 = '' OR service_date >= $1::date)
        AND ($2 = '' OR service_date <= $2::date)
        AND ($3 = '' OR created_by = $3)
-       AND unit_id = $4
+       AND ($4 = '' OR unit_id = $4)
      GROUP BY created_by`,
     [from, to, user, unit],
   );

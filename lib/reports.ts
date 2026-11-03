@@ -101,14 +101,22 @@ export function parseReportParams(params: Record<string, string | string[] | und
   };
 }
 
+/**
+ * Unidad a la que se limita un informe. El administrador principal ve todas
+ * las unidades (''), el resto sólo la suya.
+ */
+export function reportScope(user: { role: string; unit: string }): string {
+  return user.role === 'admin' ? '' : user.unit;
+}
+
 export async function operatorOptions(unit: string): Promise<string[]> {
   const rows = await query<{ username: string }>(
-    `SELECT username FROM users WHERE unit_id = $1 AND username <> ''
-     UNION SELECT created_by FROM jobs WHERE unit_id = $1 AND created_by <> ''
-     UNION SELECT created_by FROM sales WHERE unit_id = $1 AND created_by <> ''
-     UNION SELECT created_by FROM debt_payments WHERE unit_id = $1 AND created_by <> ''
-     UNION SELECT created_by FROM tire_records WHERE unit_id = $1 AND created_by <> ''
-     UNION SELECT owner_username FROM cash_sessions WHERE unit_id = $1 AND owner_username <> ''
+    `SELECT username FROM users WHERE ($1 = '' OR unit_id = $1) AND username <> ''
+     UNION SELECT created_by FROM jobs WHERE ($1 = '' OR unit_id = $1) AND created_by <> ''
+     UNION SELECT created_by FROM sales WHERE ($1 = '' OR unit_id = $1) AND created_by <> ''
+     UNION SELECT created_by FROM debt_payments WHERE ($1 = '' OR unit_id = $1) AND created_by <> ''
+     UNION SELECT created_by FROM tire_records WHERE ($1 = '' OR unit_id = $1) AND created_by <> ''
+     UNION SELECT owner_username FROM cash_sessions WHERE ($1 = '' OR unit_id = $1) AND owner_username <> ''
      ORDER BY username`,
     [unit],
   );

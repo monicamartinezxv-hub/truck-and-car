@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Wrench } from 'lucide-react';
 import { query, one } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { requireModule } from '@/lib/nav';
 import { formatDate, formatMoney } from '@/lib/format';
 import { unitLabel } from '@/lib/tenant';
 import PageHeader, { EmptyState, StatCard } from '@/components/ui';
@@ -31,7 +31,7 @@ type DebtRow = {
 };
 
 export default async function DashboardPage() {
-  const user = await requireUser();
+  const user = await requireModule('/');
 
   const totals = await one<Totals>(
     `SELECT

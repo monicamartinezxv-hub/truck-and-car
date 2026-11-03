@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { one, query } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { requireModule } from '@/lib/nav';
 import { formatDate, formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash, StatCard } from '@/components/ui';
 import ClientForm from '@/components/ClientForm';
@@ -54,7 +54,7 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<FlashParams>;
 }) {
-  const user = await requireUser();
+  const user = await requireModule('/clientes');
   const { id } = await params;
   const { msg, err } = await searchParams;
   const clientId = Number(id);

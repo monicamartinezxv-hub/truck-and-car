@@ -31,7 +31,7 @@ export default async function JobsReport({ params, unit }: { params: ReportParam
      WHERE ($1 = '' OR j.service_date >= $1::date)
        AND ($2 = '' OR j.service_date <= $2::date)
        AND ($3 = '' OR j.created_by = $3)
-       AND j.unit_id = $4
+       AND ($4 = '' OR j.unit_id = $4)
      ORDER BY j.service_date DESC, j.id DESC`,
     [from, to, user, unit],
   );

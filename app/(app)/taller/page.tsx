@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Plus, Search, Trash2 } from 'lucide-react';
 import { query } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { requireModule } from '@/lib/nav';
 import { formatDate, formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash } from '@/components/ui';
 import ConfirmButton from '@/components/ConfirmButton';
@@ -25,7 +25,7 @@ export default async function WorkshopPage({
 }: {
   searchParams: Promise<FlashParams & { q?: string; cond?: string }>;
 }) {
-  const user = await requireUser();
+  const user = await requireModule('/taller');
   const { q = '', cond = '', msg, err } = await searchParams;
   const term = q.trim();
   const condition = cond === 'Deuda' || cond === 'Contado' ? cond : '';

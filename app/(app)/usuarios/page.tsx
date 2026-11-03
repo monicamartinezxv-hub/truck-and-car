@@ -1,6 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { query } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requireModule } from '@/lib/nav';
 import { formatDate } from '@/lib/format';
 import PageHeader, { EmptyState, Flash } from '@/components/ui';
 import ConfirmButton from '@/components/ConfirmButton';
@@ -27,7 +27,7 @@ export default async function UsersPage({
 }: {
   searchParams: Promise<FlashParams>;
 }) {
-  const session = await requireAdmin();
+  const session = await requireModule('/usuarios');
   const { msg, err } = await searchParams;
 
   const users = await query<UserRow>(
