@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { one, query, withTransaction } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
+import { clientVisibilitySql, seesAllClients } from '@/lib/permissions';
 import { flashError, flashSuccess } from '@/lib/flash';
 
 export type VehicleInput = {
@@ -81,8 +82,8 @@ export async function createClient(formData: FormData) {
     );
     const code = `CLI-${String(countRow.rows[0]?.next ?? 1).padStart(4, '0')}`;
     const inserted = await client.query<{ id: number }>(
-      `INSERT INTO clients (client_code, name, ci_ruc, phone, address, payment_condition, unit_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      `INSERT INTO clients (client_code, name, ci_ruc, phone, address, payment_condition, unit_id, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [
         code,
         fields.name,
@@ -91,6 +92,7 @@ export async function createClient(formData: FormData) {
         fields.address,
         fields.payment_condition,
         user.unit,
+        user.username,
       ],
     );
     const id = inserted.rows[0].id;
@@ -122,9 +124,11 @@ export async function updateClient(formData: FormData) {
   const fields = clientFields(formData);
   if (!id || !fields.name) redirect(flashError('/clientes', 'Datos del cliente incompletos'));
 
+  // Sólo se editan los clientes visibles para el usuario (propios o compartidos).
   const owned = await one<{ id: number }>(
-    'SELECT id FROM clients WHERE id = $1 AND unit_id = $2',
-    [id, user.unit],
+    `SELECT c.id FROM clients c
+     WHERE c.id = $1 AND c.unit_id = $2 AND ${clientVisibilitySql('c', '$3', '$4')}`,
+    [id, user.unit, seesAllClients(user), user.username],
   );
   if (!owned) redirect(flashError('/clientes', 'Cliente no encontrado'));
 

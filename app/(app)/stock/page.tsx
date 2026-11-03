@@ -1,6 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { query } from '@/lib/db';
 import { canEditPrices } from '@/lib/auth';
+import { canEditStock } from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { UNIT_MAIN } from '@/lib/tenant';
 import { STOCK_CATEGORIES } from '@/lib/constants';
@@ -27,8 +28,9 @@ export default async function StockPage({
 }) {
   const user = await requireModule('/stock');
   const { msg, err } = await searchParams;
-  // Los precios base siguen siendo potestad del administrador (admin / admin2).
-  const canSetPrice = canEditPrices(user.role);
+  // Sólo admin y admin2 cargan o modifican stock; el resto lo consulta.
+  const canEdit = canEditStock(user);
+  const canSetPrice = canEdit && canEditPrices(user.role);
 
   // Inventario general de Casa Central: nunca mezcla artículos de Garaje 14.
   const items = await query<StockRow>(
@@ -44,10 +46,11 @@ export default async function StockPage({
     <div>
       <PageHeader
         title="Stock e Inventario"
-        subtitle={`${items.length} productos · ${lowStock} con stock bajo · valor ${formatMoney(totalValue)}`}
+        subtitle={`${items.length} productos · ${lowStock} con stock bajo · valor ${formatMoney(totalValue)}${canEdit ? '' : ' · sólo consulta'}`}
       />
       <Flash success={msg} error={err} />
 
+      {canEdit ? (
       <details className="panel mb-5">
         <summary>
           <span className="inline-flex items-center gap-2">
@@ -104,6 +107,7 @@ export default async function StockPage({
           </form>
         </div>
       </details>
+      ) : null}
 
       <div className="card overflow-x-auto">
         {items.length === 0 ? (
@@ -131,6 +135,7 @@ export default async function StockPage({
                   <td className="text-slate-200">{formatMoney(item.price)}</td>
                   <td className="text-slate-400">{item.supplier || '-'}</td>
                   <td>
+                    {canEdit ? (
                     <div className="flex items-center justify-end gap-3">
                       <details>
                         <summary className="cursor-pointer text-xs font-semibold text-sky-300">Editar</summary>
@@ -173,6 +178,7 @@ export default async function StockPage({
                         </ConfirmButton>
                       </form>
                     </div>
+                    ) : null}
                   </td>
                 </tr>
               ))}

@@ -1,4 +1,5 @@
 import { one, query } from '@/lib/db';
+import { canRegisterSales } from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { CURRENCIES, PAYMENT_METHODS } from '@/lib/constants';
 import { formatDateTime, formatMoney } from '@/lib/format';
@@ -58,6 +59,7 @@ export default async function CashPage({
   const user = await requireModule('/caja');
   const { msg, err } = await searchParams;
   const scope = user.role === 'admin' ? null : user.username;
+  const showSalesForm = canRegisterSales(user);
 
   const session = await one<Session>(
     `SELECT id, opening_amount, closing_amount, status, opened_at, closed_at
@@ -140,7 +142,7 @@ export default async function CashPage({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <section className="card">
+        <section className={showSalesForm ? 'card' : 'card lg:col-span-3'}>
           <h2 className="card-title">Estado de caja · {user.username}</h2>
           {session ? (
             <div className="space-y-2 text-sm">
@@ -190,6 +192,7 @@ export default async function CashPage({
           )}
         </section>
 
+        {showSalesForm ? (
         <section className="card lg:col-span-2">
           <h2 className="card-title">Registrar venta</h2>
           <form action={registerSale} className="grid gap-3 sm:grid-cols-2">
@@ -259,6 +262,7 @@ export default async function CashPage({
             </SubmitButton>
           </form>
         </section>
+        ) : null}
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">

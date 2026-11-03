@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Plus, Search } from 'lucide-react';
 import { query } from '@/lib/db';
+import { clientVisibilitySql, seesAllClients } from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash } from '@/components/ui';
@@ -36,10 +37,11 @@ export default async function ClientsPage({
             COALESCE((SELECT sum(r.balance) FROM receivables r WHERE r.client_id = c.id AND r.unit_id = c.unit_id AND NOT r.paid), 0) AS debt
      FROM clients c
      WHERE c.unit_id = $1
-       AND ($2 = '' OR c.name ILIKE '%' || $2 || '%' OR c.ci_ruc ILIKE '%' || $2 || '%'
-        OR c.phone ILIKE '%' || $2 || '%' OR c.client_code ILIKE '%' || $2 || '%')
+       AND ${clientVisibilitySql('c', '$2', '$3')}
+       AND ($4 = '' OR c.name ILIKE '%' || $4 || '%' OR c.ci_ruc ILIKE '%' || $4 || '%'
+        OR c.phone ILIKE '%' || $4 || '%' OR c.client_code ILIKE '%' || $4 || '%')
      ORDER BY c.name ASC`,
-    [user.unit, term],
+    [user.unit, seesAllClients(user), user.username, term],
   );
 
   return (

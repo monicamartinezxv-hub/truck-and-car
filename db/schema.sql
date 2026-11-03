@@ -169,6 +169,10 @@ CREATE TABLE IF NOT EXISTS cash_sessions (
 -- de su padre y siempre se consultan a través de él.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS unit_id TEXT NOT NULL DEFAULT 'principal';
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS unit_id TEXT NOT NULL DEFAULT 'principal';
+
+-- Autor de cada cliente: los del administrador se comparten con todos, los de un
+-- operario sólo los ve quien los cargó. Las filas anteriores quedan en '' (compartidas).
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT '';
 ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS unit_id TEXT NOT NULL DEFAULT 'principal';
 ALTER TABLE tire_records ADD COLUMN IF NOT EXISTS unit_id TEXT NOT NULL DEFAULT 'principal';
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS unit_id TEXT NOT NULL DEFAULT 'principal';

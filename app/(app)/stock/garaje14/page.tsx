@@ -1,6 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { query } from '@/lib/db';
 import { canEditPrices } from '@/lib/auth';
+import { canEditStock } from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { UNIT_GARAGE } from '@/lib/tenant';
 import { STOCK_CATEGORIES } from '@/lib/constants';
@@ -27,9 +28,9 @@ export default async function Garage14StockPage({
 }) {
   const user = await requireModule('/stock/garaje14');
   const { msg, err } = await searchParams;
-  // El inventario de Garaje 14 lo manejan sus usuarios y el administrador.
-  const canEdit = user.role === 'admin' || user.unit === UNIT_GARAGE;
-  const canSetPrice = canEditPrices(user.role);
+  // Sólo admin y admin2 cargan o modifican stock; garaje14 lo consulta.
+  const canEdit = canEditStock(user);
+  const canSetPrice = canEdit && canEditPrices(user.role);
 
   // Inventario propio de Garaje 14: nunca mezcla artículos de Casa Central.
   const items = await query<StockRow>(

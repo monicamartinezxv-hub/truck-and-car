@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { query } from '@/lib/db';
 import { canEditPrices } from '@/lib/auth';
+import { clientVisibilitySql, seesAllClients, stockSection, usesMaintenance } from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { SERVICES } from '@/lib/constants';
 import PageHeader, { Flash } from '@/components/ui';
@@ -17,26 +18,33 @@ export default async function NewJobPage({
   const user = await requireModule('/taller');
   const { msg, err } = await searchParams;
 
+  const maintenance = usesMaintenance(user);
+
   const clients = await query<ClientOption>(
     `SELECT c.id, c.name,
             COALESCE((SELECT v.plate FROM client_vehicles v WHERE v.client_id = c.id AND v.plate <> '' LIMIT 1), '') AS plate
-     FROM clients c WHERE c.unit_id = $1 ORDER BY c.name`,
-    [user.unit],
+     FROM clients c
+     WHERE c.unit_id = $1 AND ${clientVisibilitySql('c', '$2', '$3')}
+     ORDER BY c.name`,
+    [user.unit, seesAllClients(user), user.username],
   );
 
+  // Garaje 14 arma sus trabajos con los artículos de su propio inventario.
   const stock = await query<StockOption>(
     `SELECT id, product_name, category, quantity, price
      FROM stock_items
-     WHERE unit_id = $1 AND section = 'general' AND quantity > 0
+     WHERE unit_id = $1 AND section = $2 AND quantity > 0
      ORDER BY product_name`,
-    [user.unit],
+    [user.unit, stockSection(user.unit)],
   );
 
   return (
     <div>
       <PageHeader
         title="Nuevo trabajo"
-        subtitle="Registrá los servicios y artículos del trabajo"
+        subtitle={
+          maintenance ? 'Registrá los artículos del trabajo' : 'Registrá los servicios y artículos del trabajo'
+        }
         actions={
           <Link href="/taller" className="btn-secondary">
             <ArrowLeft className="h-4 w-4" />
@@ -52,6 +60,8 @@ export default async function NewJobPage({
         services={SERVICES}
         submitLabel="Guardar trabajo"
         canEditPrices={canEditPrices(user.role)}
+        hideServices={maintenance}
+        hideChecklist={maintenance}
       />
     </div>
   );

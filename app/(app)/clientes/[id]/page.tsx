@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { one, query } from '@/lib/db';
+import { clientVisibilitySql, seesAllClients } from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { formatDate, formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash, StatCard } from '@/components/ui';
@@ -61,8 +62,9 @@ export default async function ClientDetailPage({
   if (!Number.isFinite(clientId)) notFound();
 
   const client = await one<ClientDetail>(
-    'SELECT * FROM clients WHERE id = $1 AND unit_id = $2',
-    [clientId, user.unit],
+    `SELECT c.* FROM clients c
+     WHERE c.id = $1 AND c.unit_id = $2 AND ${clientVisibilitySql('c', '$3', '$4')}`,
+    [clientId, user.unit, seesAllClients(user), user.username],
   );
   if (!client) notFound();
 

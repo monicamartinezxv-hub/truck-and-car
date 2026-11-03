@@ -31,9 +31,11 @@ El esquema es idempotente (`CREATE TABLE IF NOT EXISTS`). Un cambio de esquema s
 `lib/nav.ts` decide qué módulos ve cada usuario y `requireModule(href)` bloquea la ruta en el
 servidor cuando el menú la oculta (las páginas lo llaman en lugar de `requireUser`): `admin` ve
 todo; `usergomeria`/`usertaller` ven **Stock e Inventario** pero no **Stock de Artículos**;
-`garaje14` ve sólo **Stock de Artículos**; `admin2` ve únicamente **Cierre de Caja**
-(`/cierre-caja`) y entra ahí directo tras el login (`homeHref`). El plan está en
-`docs/plan-acceso-modulos-stock.md`. Las contraseñas se guardan con scrypt (`lib/auth.ts`).
+`garaje14` ve Dashboard, Clientes, **Mantenimiento**, **Stock de Artículos** y **Caja y Ventas**;
+`admin2` tiene esos mismos módulos más **Informes**, donde controla los cierres de caja de
+`garaje14`. Todos entran al dashboard tras el login (`homeHref`). Los permisos finos viven en
+`lib/permissions.ts` y el plan está en `docs/plan-acceso-modulos-stock.md`. Las contraseñas se
+guardan con scrypt (`lib/auth.ts`).
 
 ## Verificación
 
@@ -102,6 +104,17 @@ todo; `usergomeria`/`usertaller` ven **Stock e Inventario** pero no **Stock de A
   el usuario pertenezca a esa unidad (o sea `admin`) y filtra `UPDATE`/`DELETE` por
   `id + unit_id + section`: los dos inventarios no se mezclan nunca. El precio base sólo lo cambian
   `admin`/`admin2` (`canEditPrices`); para el resto el precio enviado se ignora.
+- **Permisos por rol y usuario** (`lib/permissions.ts`): `canEditStock()` deja cargar y editar
+  stock sólo a `admin` y `admin2`; para el resto `/stock` y `/stock/garaje14` son de sólo lectura,
+  y `app/actions/stock.ts` rechaza las escrituras. `jobOwnerScope()` limita a `usertaller` y a
+  `usergomeria` a sus propios trabajos (lista, detalle, edición, borrado y dashboard).
+  `clientVisibilitySql()` usa `clients.created_by` (columna nueva, vacía en las filas viejas =
+  compartidas): los clientes del administrador y de admin2 se comparten dentro de la unidad y los
+  de un operario sólo los ve quien los creó. En `garaje14`/`admin2` el módulo de trabajos se llama
+  **Mantenimiento** (`workshopLabel`), su formulario oculta servicios y checklist
+  (`usesMaintenance`) y `garaje14` no registra ventas (`canRegisterSales`, también validado en el
+  servidor). El antiguo módulo `/cierre-caja` ahora redirige a `/informes`, donde admin2 ve los
+  cierres de `garaje14` (`components/reports/GarageCashClose.tsx`).
 - **Alcance de los informes**: `reportScope(session)` (`lib/reports.ts`) devuelve la unidad del
   usuario y `''` para el rol `admin`. Con `''` las consultas de los ocho informes se leen como
   `($n = '' OR unit_id = $n)` y `operatorOptions('')` lista los operarios de todas las unidades, así

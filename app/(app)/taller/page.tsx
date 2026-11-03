@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Plus, Search, Trash2 } from 'lucide-react';
 import { query } from '@/lib/db';
+import { jobOwnerScope, workshopLabel } from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { formatDate, formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash } from '@/components/ui';
@@ -30,17 +31,19 @@ export default async function WorkshopPage({
   const term = q.trim();
   const condition = cond === 'Deuda' || cond === 'Contado' ? cond : '';
 
+  // Privacidad por operario: usertaller y usergomeria sólo ven sus trabajos.
   const jobs = await query<JobRow>(
     `SELECT j.id, j.client_name, j.plate, j.description, j.service_date, j.total, j.currency,
             j.payment_condition,
             (SELECT count(*) FROM job_items i WHERE i.job_id = j.id)::int AS items_count
      FROM jobs j
      WHERE j.unit_id = $1
+       AND ($4::text IS NULL OR j.created_by = $4)
        AND ($2 = '' OR j.client_name ILIKE '%' || $2 || '%' OR j.plate ILIKE '%' || $2 || '%'
             OR j.description ILIKE '%' || $2 || '%')
        AND ($3 = '' OR j.payment_condition = $3)
      ORDER BY j.service_date DESC, j.id DESC`,
-    [user.unit, term, condition],
+    [user.unit, term, condition, jobOwnerScope(user)],
   );
 
   const total = jobs.reduce((sum, job) => sum + Number(job.total), 0);
@@ -48,7 +51,7 @@ export default async function WorkshopPage({
   return (
     <div>
       <PageHeader
-        title="Gomería / Taller"
+        title={workshopLabel(user)}
         subtitle={`${jobs.length} trabajo${jobs.length === 1 ? '' : 's'} · ${formatMoney(total)}`}
         actions={
           <Link href="/taller/nuevo" className="btn-primary">

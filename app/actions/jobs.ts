@@ -3,8 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import type { PoolClient } from 'pg';
-import { query, withTransaction } from '@/lib/db';
+import { one, query, withTransaction } from '@/lib/db';
 import { canEditPrices, requireUser, type Role } from '@/lib/auth';
+import { jobOwnerScope } from '@/lib/permissions';
 import { flashError, flashSuccess } from '@/lib/flash';
 import { isDateISO, todayISO } from '@/lib/format';
 import { CHECKLIST_ITEMS, SERVICE_TO_STOCK_CATEGORY } from '@/lib/constants';
@@ -224,10 +225,13 @@ export async function updateJob(formData: FormData) {
   const checklist = parseChecklist(formData.get('checklist'));
   const total = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
 
+  const scope = jobOwnerScope(user);
+
   await withTransaction(async (client) => {
     const current = await client.query<{ payment_condition: string; client_id: number | null }>(
-      'SELECT payment_condition, client_id FROM jobs WHERE id = $1 AND unit_id = $2',
-      [jobId, user.unit],
+      `SELECT payment_condition, client_id FROM jobs
+       WHERE id = $1 AND unit_id = $2 AND ($3::text IS NULL OR created_by = $3)`,
+      [jobId, user.unit, scope],
     );
     if (!current.rows[0]) {
       redirect(flashError('/taller', 'Trabajo no encontrado'));
@@ -319,6 +323,13 @@ export async function deleteJob(formData: FormData) {
   const user = await requireUser();
   const jobId = Number(formData.get('id'));
   if (!jobId) redirect(flashError('/taller', 'Trabajo inválido'));
+
+  // Sólo se eliminan trabajos propios (o de la unidad, para admin/admin2/garaje14).
+  const owned = await one<{ id: number }>(
+    `SELECT id FROM jobs WHERE id = $1 AND unit_id = $2 AND ($3::text IS NULL OR created_by = $3)`,
+    [jobId, user.unit, jobOwnerScope(user)],
+  );
+  if (!owned) redirect(flashError('/taller', 'Trabajo no encontrado'));
 
   await withTransaction(async (client) => {
     await client.query('DELETE FROM receivables WHERE job_id = $1 AND unit_id = $2 AND NOT paid', [

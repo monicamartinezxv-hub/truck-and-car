@@ -14,6 +14,7 @@ import { requireModule } from '@/lib/nav';
 import PageHeader from '@/components/ui';
 import ReportActions from '@/components/reports/ReportActions';
 import ReportFilters from '@/components/reports/ReportFilters';
+import GarageCashClose from '@/components/reports/GarageCashClose';
 import ClientDetailReport from '@/components/reports/ClientDetailReport';
 import TiresReport from '@/components/reports/TiresReport';
 import ClientMovementsReport from '@/components/reports/ClientMovementsReport';
@@ -49,6 +50,8 @@ export default async function ReportsPage({
 }) {
   const user = await requireModule('/informes');
   const params = parseReportParams(await searchParams);
+  // admin2 sólo controla los cierres de caja de Garaje 14 desde este módulo.
+  if (user.role === 'admin2') return <GarageCashClose params={params} />;
   const meta = findReport(params.report);
   // El administrador principal audita todas las unidades; el resto, la propia.
   const scope = reportScope(user);

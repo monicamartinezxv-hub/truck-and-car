@@ -14,5 +14,5 @@ export async function POST(request: Request) {
   if (!user) redirect(INVALID);
 
   await createSession(user);
-  redirect(homeHref(user.username, user.role));
+  redirect(homeHref());
 }

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Wrench } from 'lucide-react';
 import { query, one } from '@/lib/db';
+import { jobOwnerScope } from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { formatDate, formatMoney } from '@/lib/format';
 import { unitLabel } from '@/lib/tenant';
@@ -33,19 +34,23 @@ type DebtRow = {
 export default async function DashboardPage() {
   const user = await requireModule('/');
 
+  const scope = jobOwnerScope(user);
+
   const totals = await one<Totals>(
     `SELECT
       (SELECT count(*) FROM clients WHERE unit_id = $1)::int AS clients,
-      (SELECT count(*) FROM jobs WHERE unit_id = $1 AND service_date = current_date)::int AS jobs_today,
+      (SELECT count(*) FROM jobs WHERE unit_id = $1 AND service_date = current_date
+        AND ($2::text IS NULL OR created_by = $2))::int AS jobs_today,
       COALESCE((SELECT sum(balance) FROM receivables WHERE unit_id = $1 AND NOT paid), 0) AS receivable,
       COALESCE((SELECT sum(amount) FROM sales WHERE unit_id = $1), 0) AS sales`,
-    [user.unit],
+    [user.unit, scope],
   );
 
   const jobs = await query<JobRow>(
     `SELECT id, client_name, description, service_date, total, currency, payment_condition
-     FROM jobs WHERE unit_id = $1 ORDER BY service_date DESC, id DESC LIMIT 5`,
-    [user.unit],
+     FROM jobs WHERE unit_id = $1 AND ($2::text IS NULL OR created_by = $2)
+     ORDER BY service_date DESC, id DESC LIMIT 5`,
+    [user.unit, scope],
   );
 
   const debts = await query<DebtRow>(

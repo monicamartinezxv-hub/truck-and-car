@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { one, query, withTransaction } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
+import { canRegisterSales } from '@/lib/permissions';
 import { flashError, flashSuccess } from '@/lib/flash';
 
 export async function openCash(formData: FormData) {
@@ -64,6 +65,10 @@ export async function closeCash() {
 
 export async function registerSale(formData: FormData) {
   const user = await requireUser();
+  // garaje14 no registra ventas: el formulario no se muestra y el servidor lo rechaza.
+  if (!canRegisterSales(user)) {
+    redirect(flashError('/caja', 'Este usuario no registra ventas'));
+  }
   const name = String(formData.get('name') ?? '').trim();
   const amount = Number(formData.get('amount'));
   const currency = String(formData.get('currency') ?? 'PYG') === 'USD' ? 'USD' : 'PYG';

@@ -3,6 +3,13 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { one, query } from '@/lib/db';
 import { canEditPrices } from '@/lib/auth';
+import {
+  clientVisibilitySql,
+  jobOwnerScope,
+  seesAllClients,
+  stockSection,
+  usesMaintenance,
+} from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { SERVICES } from '@/lib/constants';
 import { formatDate, formatMoney } from '@/lib/format';
@@ -60,10 +67,11 @@ export default async function JobDetailPage({
   const jobId = Number(id);
   if (!Number.isFinite(jobId)) notFound();
 
-  const job = await one<JobRow>('SELECT * FROM jobs WHERE id = $1 AND unit_id = $2', [
-    jobId,
-    user.unit,
-  ]);
+  // Los operarios sólo abren sus propios trabajos (privacidad por operario).
+  const job = await one<JobRow>(
+    `SELECT * FROM jobs WHERE id = $1 AND unit_id = $2 AND ($3::text IS NULL OR created_by = $3)`,
+    [jobId, user.unit, jobOwnerScope(user)],
+  );
   if (!job) notFound();
 
   const items = await query<ItemRow>(
@@ -73,15 +81,17 @@ export default async function JobDetailPage({
   const clients = await query<ClientOption>(
     `SELECT c.id, c.name,
             COALESCE((SELECT v.plate FROM client_vehicles v WHERE v.client_id = c.id AND v.plate <> '' LIMIT 1), '') AS plate
-     FROM clients c WHERE c.unit_id = $1 ORDER BY c.name`,
-    [user.unit],
+     FROM clients c
+     WHERE c.unit_id = $1 AND ${clientVisibilitySql('c', '$2', '$3')}
+     ORDER BY c.name`,
+    [user.unit, seesAllClients(user), user.username],
   );
   const stock = await query<StockOption>(
     `SELECT id, product_name, category, quantity, price
      FROM stock_items
-     WHERE unit_id = $1 AND section = 'general' AND quantity > 0
+     WHERE unit_id = $1 AND section = $2 AND quantity > 0
      ORDER BY product_name`,
-    [user.unit],
+    [user.unit, stockSection(user.unit)],
   );
   const receivable = await one<ReceivableRow>(
     `SELECT id, balance, original_balance, paid, currency FROM receivables
@@ -147,6 +157,8 @@ export default async function JobDetailPage({
         }}
         submitLabel="Guardar cambios"
         canEditPrices={canEditPrices(user.role)}
+        hideServices={usesMaintenance(user)}
+        hideChecklist={usesMaintenance(user)}
       />
 
       <form action={deleteJob} className="mt-4">

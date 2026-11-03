@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { query } from '@/lib/db';
 import { canEditPrices, requireUser, type SessionUser } from '@/lib/auth';
+import { canEditStock } from '@/lib/permissions';
 import { flashError, flashSuccess } from '@/lib/flash';
 import { UNIT_GARAGE, UNIT_MAIN } from '@/lib/tenant';
 
@@ -35,8 +36,12 @@ function sectionPath(section: string): string {
   return section === 'garaje14' ? '/stock/garaje14' : '/stock';
 }
 
-/** Sólo los usuarios de la unidad dueña del inventario (y el admin) lo editan. */
+/**
+ * Sólo el administrador principal y admin2 modifican stock, y cada uno en su
+ * inventario: admin puede con ambos, admin2 con el de su unidad (Garaje 14).
+ */
 function canWriteSection(section: string, user: SessionUser): boolean {
+  if (!canEditStock(user)) return false;
   if (user.role === 'admin') return true;
   return user.unit === SECTION_UNIT[section];
 }

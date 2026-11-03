@@ -49,6 +49,8 @@ export default function JobForm({
   initial,
   submitLabel,
   canEditPrices = false,
+  hideServices = false,
+  hideChecklist = false,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   clients: ClientOption[];
@@ -57,6 +59,10 @@ export default function JobForm({
   initial?: JobInitial;
   submitLabel: string;
   canEditPrices?: boolean;
+  /** Garaje 14 / admin2 sólo venden artículos: sin selector de servicios. */
+  hideServices?: boolean;
+  /** Garaje 14 / admin2 no usan el checklist de revisión. */
+  hideChecklist?: boolean;
 }) {
   const [items, setItems] = useState<ItemDraft[]>(initial?.items ?? []);
   const [checklist, setChecklist] = useState<Record<string, boolean>>(initial?.checklist ?? {});
@@ -234,8 +240,9 @@ export default function JobForm({
       </section>
 
       <section className="card">
-        <h2 className="card-title">Servicios y artículos</h2>
+        <h2 className="card-title">{hideServices ? 'Artículos' : 'Servicios y artículos'}</h2>
 
+        {hideServices ? null : (
         <div className="grid gap-2 sm:grid-cols-[2fr_auto_auto_auto] sm:items-end">
           <div>
             <label className="label" htmlFor="service">
@@ -286,8 +293,13 @@ export default function JobForm({
             Agregar servicio
           </button>
         </div>
+        )}
 
-        <div className="mt-3 grid gap-2 border-t border-surface/60 pt-3 sm:grid-cols-[2fr_auto_auto] sm:items-end">
+        <div
+          className={`grid gap-2 sm:grid-cols-[2fr_auto_auto] sm:items-end ${
+            hideServices ? '' : 'mt-3 border-t border-surface/60 pt-3'
+          }`}
+        >
           <div>
             <label className="label" htmlFor="article">
               Artículo de stock
@@ -415,7 +427,8 @@ export default function JobForm({
       </section>
 
       <section className="card">
-        <h2 className="card-title">Checklist de revisión</h2>
+        <h2 className="card-title">{hideChecklist ? 'Observaciones' : 'Checklist de revisión'}</h2>
+        {hideChecklist ? null : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {CHECKLIST_ITEMS.map((entry) => (
             <label key={entry} className="flex items-center gap-2 text-sm text-slate-300">
@@ -431,7 +444,8 @@ export default function JobForm({
             </label>
           ))}
         </div>
-        <div className="mt-4">
+        )}
+        <div className={hideChecklist ? '' : 'mt-4'}>
           <label className="label" htmlFor="notes">
             Observaciones
           </label>
