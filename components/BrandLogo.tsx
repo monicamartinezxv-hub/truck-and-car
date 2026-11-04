@@ -4,11 +4,11 @@ import { Truck } from 'lucide-react';
 
 /**
  * Logo de la marca mostrado en el login.
- * Usa `public/logo-truckcar.png`; si el archivo todavía no está, muestra el icono del camión
+ * Usa `public/logo-truckcar.jpg`; si el archivo todavía no está, muestra el icono del camión
  * para no dejar una imagen rota.
  */
 export default function BrandLogo() {
-  const hasLogo = existsSync(path.join(process.cwd(), 'public', 'logo-truckcar.png'));
+  const hasLogo = existsSync(path.join(process.cwd(), 'public', 'logo-truckcar.jpg'));
 
   if (!hasLogo) {
     return (
@@ -19,11 +19,13 @@ export default function BrandLogo() {
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/logo-truckcar.png"
-      alt="TRUCK AND CAR"
-      className="h-36 w-36 rounded-2xl object-contain"
-    />
+    <div className="rounded-2xl bg-white p-3 shadow-sm">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo-truckcar.jpg"
+        alt="TRUCK AND CAR"
+        className="h-32 w-32 object-contain"
+      />
+    </div>
   );
 }
