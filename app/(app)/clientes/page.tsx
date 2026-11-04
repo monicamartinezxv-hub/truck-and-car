@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Plus, Search } from 'lucide-react';
 import { query } from '@/lib/db';
-import { clientVisibilitySql, seesAllClients } from '@/lib/permissions';
+import { clientVisibilitySql, seesAllClients, showsVehicles } from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash } from '@/components/ui';
@@ -77,7 +77,11 @@ export default async function ClientsPage({
           </span>
         </summary>
         <div className="border-t border-surface/60 p-4">
-          <ClientForm action={createClient} submitLabel="Guardar cliente" />
+          <ClientForm
+            action={createClient}
+            submitLabel="Guardar cliente"
+            showVehicles={showsVehicles(user)}
+          />
         </div>
       </details>
 

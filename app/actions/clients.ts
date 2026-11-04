@@ -132,7 +132,10 @@ export async function updateClient(formData: FormData) {
   );
   if (!owned) redirect(flashError('/clientes', 'Cliente no encontrado'));
 
-  const vehicles = parseVehicles(formData.get('vehicles'));
+  // El formulario de Garaje 14 / admin2 no envía vehículos: sin el campo no se
+  // toca la tabla (si no, se borrarían los vehículos ya cargados del cliente).
+  const rawVehicles = formData.get('vehicles');
+  const vehicles = parseVehicles(rawVehicles);
 
   await withTransaction(async (client) => {
     await client.query(
@@ -158,7 +161,7 @@ export async function updateClient(formData: FormData) {
     );
   });
 
-  await syncVehicles(id, vehicles);
+  if (rawVehicles !== null) await syncVehicles(id, vehicles);
 
   revalidatePath('/clientes');
   revalidatePath(`/clientes/${id}`);

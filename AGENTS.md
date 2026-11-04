@@ -115,6 +115,11 @@ guardan con scrypt (`lib/auth.ts`).
   (`usesMaintenance`) y `garaje14` no registra ventas (`canRegisterSales`, también validado en el
   servidor). El antiguo módulo `/cierre-caja` ahora redirige a `/informes`, donde admin2 ve los
   cierres de `garaje14` (`components/reports/GarageCashClose.tsx`).
+  `showsVehicles()` oculta el apartado de **Vehículos** (formulario de alta/edición y panel del
+  detalle) a `garaje14` y `admin2`; el resto lo sigue cargando. Como esos formularios no envían el
+  campo `vehicles`, `updateClient` sólo sincroniza vehículos cuando el campo llegó (si no, borraría
+  los ya cargados). `typesStockCategory()` hace que `admin2` escriba la **Categoría** del artículo
+  como texto libre en `/stock/garaje14`; `admin` mantiene el selector `STOCK_CATEGORIES`.
 - **Alcance de los informes**: `reportScope(session)` (`lib/reports.ts`) devuelve la unidad del
   usuario y `''` para el rol `admin`. Con `''` las consultas de los ocho informes se leen como
   `($n = '' OR unit_id = $n)` y `operatorOptions('')` lista los operarios de todas las unidades, así

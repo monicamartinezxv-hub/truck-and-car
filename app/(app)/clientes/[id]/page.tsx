@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { one, query } from '@/lib/db';
-import { clientVisibilitySql, seesAllClients } from '@/lib/permissions';
+import { clientVisibilitySql, seesAllClients, showsVehicles } from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { formatDate, formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash, StatCard } from '@/components/ui';
@@ -68,10 +68,12 @@ export default async function ClientDetailPage({
   );
   if (!client) notFound();
 
-  const vehicles = await query<VehicleRow>(
-    'SELECT * FROM client_vehicles WHERE client_id = $1 ORDER BY id',
-    [clientId],
-  );
+  // Garaje 14 y admin2 no trabajan con vehículos: no ven ese apartado.
+  const withVehicles = showsVehicles(user);
+
+  const vehicles = withVehicles
+    ? await query<VehicleRow>('SELECT * FROM client_vehicles WHERE client_id = $1 ORDER BY id', [clientId])
+    : [];
   const jobs = await query<JobRow>(
     `SELECT id, service_date, description, total, currency, payment_condition
      FROM jobs WHERE client_id = $1 AND unit_id = $2 ORDER BY service_date DESC, id DESC`,
@@ -190,6 +192,7 @@ export default async function ClientDetailPage({
         </div>
 
         <div className="space-y-4">
+          {withVehicles ? (
           <section className="card">
             <h2 className="card-title">Vehículos</h2>
             {vehicles.length === 0 ? (
@@ -210,6 +213,7 @@ export default async function ClientDetailPage({
               </ul>
             )}
           </section>
+          ) : null}
 
           <section className="card">
             <h2 className="card-title">Datos</h2>
@@ -233,6 +237,7 @@ export default async function ClientDetailPage({
           <ClientForm
             action={updateClient}
             submitLabel="Guardar cambios"
+            showVehicles={withVehicles}
             initial={{
               id: client.id,
               name: client.name,

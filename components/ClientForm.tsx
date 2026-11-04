@@ -36,10 +36,13 @@ export default function ClientForm({
   action,
   initial,
   submitLabel,
+  showVehicles = true,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   initial?: ClientDraft;
   submitLabel: string;
+  /** Garaje 14 y admin2 no cargan vehículos (ver `showsVehicles`). */
+  showVehicles?: boolean;
 }) {
   const [vehicles, setVehicles] = useState<VehicleDraft[]>(
     initial?.vehicles.length ? initial.vehicles : [EMPTY_VEHICLE],
@@ -62,17 +65,19 @@ export default function ClientForm({
   return (
     <form action={action} className="space-y-4">
       {initial?.id ? <input type="hidden" name="id" value={initial.id} /> : null}
-      <input
-        type="hidden"
-        name="vehicles"
-        value={JSON.stringify(
-          vehicles.filter((vehicle) =>
-            [vehicle.brand, vehicle.model, vehicle.engine, vehicle.plate, vehicle.transmission].some(
-              (value) => value.trim() !== '',
+      {showVehicles ? (
+        <input
+          type="hidden"
+          name="vehicles"
+          value={JSON.stringify(
+            vehicles.filter((vehicle) =>
+              [vehicle.brand, vehicle.model, vehicle.engine, vehicle.plate, vehicle.transmission].some(
+                (value) => value.trim() !== '',
+              ),
             ),
-          ),
-        )}
-      />
+          )}
+        />
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -118,6 +123,7 @@ export default function ClientForm({
         </div>
       </div>
 
+      {showVehicles ? (
       <div className="rounded-xl border border-surface/60 bg-dark/40 p-3">
         <div className="mb-2 flex items-center justify-between">
           <p className="text-sm font-semibold text-slate-200">Vehículos</p>
@@ -172,6 +178,7 @@ export default function ClientForm({
           ))}
         </div>
       </div>
+      ) : null}
 
       <SubmitButton className="btn-primary" pendingLabel="Guardando…">
         {submitLabel}

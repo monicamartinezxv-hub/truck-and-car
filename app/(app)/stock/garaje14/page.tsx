@@ -1,7 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { query } from '@/lib/db';
 import { canEditPrices } from '@/lib/auth';
-import { canEditStock } from '@/lib/permissions';
+import { canEditStock, typesStockCategory } from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { UNIT_GARAGE } from '@/lib/tenant';
 import { STOCK_CATEGORIES } from '@/lib/constants';
@@ -31,6 +31,8 @@ export default async function Garage14StockPage({
   // Sólo admin y admin2 cargan o modifican stock; garaje14 lo consulta.
   const canEdit = canEditStock(user);
   const canSetPrice = canEdit && canEditPrices(user.role);
+  // admin2 tipea la categoría libremente; el administrador principal usa el selector.
+  const freeCategory = typesStockCategory(user);
 
   // Inventario propio de Garaje 14: nunca mezcla artículos de Casa Central.
   const items = await query<StockRow>(
@@ -70,13 +72,23 @@ export default async function Garage14StockPage({
                 <label className="label" htmlFor="category">
                   Categoría
                 </label>
-                <select id="category" name="category" className="input">
-                  {STOCK_CATEGORIES.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
+                {freeCategory ? (
+                  <input
+                    id="category"
+                    name="category"
+                    className="input"
+                    placeholder="Escribí la categoría"
+                    autoComplete="off"
+                  />
+                ) : (
+                  <select id="category" name="category" className="input">
+                    {STOCK_CATEGORIES.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="label" htmlFor="quantity">

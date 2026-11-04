@@ -24,6 +24,22 @@ export function workshopLabel(user: Pick<UserLike, 'username' | 'role'>): string
   return usesMaintenance(user) ? 'Mantenimiento' : 'Gomería / Taller';
 }
 
+/**
+ * Vehículos: Garaje 14 y admin2 trabajan con mantenimiento y no cargan datos
+ * de vehículos. El resto (admin y operarios de Casa Central) sí los usa.
+ */
+export function showsVehicles(user: Pick<UserLike, 'username' | 'role'>): boolean {
+  return !usesMaintenance(user);
+}
+
+/**
+ * admin2 escribe la categoría de un artículo libremente, sin catálogo fijo.
+ * El administrador principal mantiene el selector de categorías.
+ */
+export function typesStockCategory(user: Pick<UserLike, 'username' | 'role'>): boolean {
+  return user.username === 'admin2' || user.role === 'admin2';
+}
+
 /** El usuario garaje14 no registra ventas: su caja sólo rinde sus trabajos. */
 export function canRegisterSales(user: Pick<UserLike, 'username'>): boolean {
   return user.username !== 'garaje14';
