@@ -10,14 +10,20 @@ import { Truck } from 'lucide-react';
 export default function BrandLogo() {
   const hasLogo = existsSync(path.join(process.cwd(), 'public', 'logo-truckcar.png'));
 
-  if (!hasLogo) return <Truck className="h-8 w-8" />;
+  if (!hasLogo) {
+    return (
+      <div className="rounded-2xl bg-accent/15 p-3 text-accent">
+        <Truck className="h-8 w-8" />
+      </div>
+    );
+  }
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src="/logo-truckcar.png"
       alt="TRUCK AND CAR"
-      className="h-14 w-auto max-w-[190px] object-contain"
+      className="h-36 w-36 rounded-2xl object-contain"
     />
   );
 }

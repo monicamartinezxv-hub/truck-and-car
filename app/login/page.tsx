@@ -14,9 +14,7 @@ export default async function LoginPage({
     <main className="flex min-h-screen items-center justify-center bg-dark p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <div className="flex min-h-16 items-center justify-center rounded-2xl bg-accent/15 px-4 py-2 text-accent">
-            <BrandLogo />
-          </div>
+          <BrandLogo />
           <h1 className="text-2xl font-black tracking-wide text-white">TRUCK AND CAR</h1>
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
             Gomería · Taller · Administración
