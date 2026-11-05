@@ -1,7 +1,33 @@
 import type { Role } from './auth';
+import {
+  BASIC_PAYMENT_CONDITIONS,
+  PAYMENT_CONDITIONS,
+  type PaymentCondition,
+} from './constants';
 import { UNIT_GARAGE, UNIT_MAIN } from './tenant';
 
 type UserLike = { username: string; role: Role; unit?: string };
+
+/**
+ * Condiciones de pago habilitadas (EFECTIVO, DEUDA, QR y TRANSFERENCIA):
+ * sólo para los perfiles autorizados. El resto conserva EFECTIVO y DEUDA.
+ */
+const PAYMENT_CONDITION_USERS = ['admin', 'admin2', 'usergomeria', 'usertaller', 'garaje14'];
+
+export function canUsePaymentConditions(user: Pick<UserLike, 'username' | 'role'>): boolean {
+  return (
+    user.role === 'admin' ||
+    user.role === 'admin2' ||
+    PAYMENT_CONDITION_USERS.includes(user.username)
+  );
+}
+
+/** Condiciones que puede elegir el usuario en formularios y filtros. */
+export function paymentConditions(
+  user: Pick<UserLike, 'username' | 'role'>,
+): readonly PaymentCondition[] {
+  return canUsePaymentConditions(user) ? PAYMENT_CONDITIONS : BASIC_PAYMENT_CONDITIONS;
+}
 
 /**
  * Stock: sólo el administrador principal y el usuario admin2 cargan o

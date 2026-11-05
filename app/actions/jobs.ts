@@ -5,10 +5,16 @@ import { redirect } from 'next/navigation';
 import type { PoolClient } from 'pg';
 import { one, query, withTransaction } from '@/lib/db';
 import { canEditPrices, requireUser, type Role } from '@/lib/auth';
-import { jobOwnerScope } from '@/lib/permissions';
+import { jobOwnerScope, paymentConditions } from '@/lib/permissions';
 import { flashError, flashSuccess } from '@/lib/flash';
 import { isDateISO, todayISO } from '@/lib/format';
-import { CHECKLIST_ITEMS, SERVICE_TO_STOCK_CATEGORY } from '@/lib/constants';
+import {
+  CHECKLIST_ITEMS,
+  DEBT_CONDITION,
+  SERVICE_TO_STOCK_CATEGORY,
+  parsePaymentCondition,
+  type PaymentCondition,
+} from '@/lib/constants';
 
 export type JobItemInput = {
   service: string;
@@ -79,11 +85,14 @@ function parseChecklist(raw: FormDataEntryValue | null): Record<string, boolean>
   return checklist;
 }
 
-function jobFields(formData: FormData) {
+function jobFields(formData: FormData, allowedConditions: readonly PaymentCondition[]) {
   const serviceDate = String(formData.get('service_date') ?? '');
   const endDate = String(formData.get('end_date') ?? '');
   const currency = String(formData.get('currency') ?? 'PYG') === 'USD' ? 'USD' : 'PYG';
-  const paymentCondition = String(formData.get('payment_condition') ?? 'Contado') === 'Deuda' ? 'Deuda' : 'Contado';
+  const paymentCondition = parsePaymentCondition(
+    formData.get('payment_condition'),
+    allowedConditions,
+  );
 
   return {
     client_id: Number(formData.get('client_id')) || null,
@@ -126,7 +135,7 @@ async function deductStock(client: PoolClient, items: JobItemInput[], unit: stri
 export async function createJob(formData: FormData) {
   const user = await requireUser();
   const items = await withOfficialPrices(parseItems(formData.get('items')), user.role, user.unit);
-  const fields = jobFields(formData);
+  const fields = jobFields(formData, paymentConditions(user));
 
   if (items.length === 0) {
     redirect(flashError('/taller/nuevo', 'Agregá al menos un servicio o artículo'));
@@ -181,7 +190,7 @@ export async function createJob(formData: FormData) {
 
     await deductStock(client, items, user.unit);
 
-    if (fields.payment_condition === 'Deuda' && total > 0) {
+    if (fields.payment_condition === DEBT_CONDITION && total > 0) {
       await client.query(
         `INSERT INTO receivables
           (client_id, job_id, client_name, plate, description, service_date, currency,
@@ -221,7 +230,7 @@ export async function updateJob(formData: FormData) {
   if (items.length === 0) {
     redirect(flashError(`/taller/${jobId}`, 'El trabajo necesita al menos un ítem'));
   }
-  const fields = jobFields(formData);
+  const fields = jobFields(formData, paymentConditions(user));
   const checklist = parseChecklist(formData.get('checklist'));
   const total = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
 
@@ -274,7 +283,7 @@ export async function updateJob(formData: FormData) {
     );
     const existing = receivable.rows[0];
 
-    if (fields.payment_condition === 'Deuda' && !existing && total > 0) {
+    if (fields.payment_condition === DEBT_CONDITION && !existing && total > 0) {
       const clientRow = fields.client_id
         ? (
             await client.query<{ name: string }>(

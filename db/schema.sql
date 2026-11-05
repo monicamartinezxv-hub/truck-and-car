@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS clients (
   ci_ruc TEXT NOT NULL DEFAULT '',
   phone TEXT NOT NULL DEFAULT '',
   address TEXT NOT NULL DEFAULT '',
-  payment_condition TEXT NOT NULL DEFAULT 'Contado',
+  payment_condition TEXT NOT NULL DEFAULT 'EFECTIVO',
   unit_id TEXT NOT NULL DEFAULT 'principal',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   service_date DATE NOT NULL,
   end_date DATE,
   currency TEXT NOT NULL DEFAULT 'PYG',
-  payment_condition TEXT NOT NULL DEFAULT 'Contado',
+  payment_condition TEXT NOT NULL DEFAULT 'EFECTIVO',
   total NUMERIC(14,2) NOT NULL DEFAULT 0,
   description TEXT NOT NULL DEFAULT '',
   notes TEXT NOT NULL DEFAULT '',
@@ -181,6 +181,15 @@ ALTER TABLE debt_payments ADD COLUMN IF NOT EXISTS unit_id TEXT NOT NULL DEFAULT
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS unit_id TEXT NOT NULL DEFAULT 'principal';
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS unit_id TEXT NOT NULL DEFAULT 'principal';
 ALTER TABLE cash_sessions ADD COLUMN IF NOT EXISTS unit_id TEXT NOT NULL DEFAULT 'principal';
+
+-- Condiciones de pago globales: 'Contado' pasa a 'EFECTIVO', 'Deuda' a 'DEUDA'
+-- y se suman QR y TRANSFERENCIA. Idempotente: re-ejecutar el esquema no altera nada.
+ALTER TABLE clients ALTER COLUMN payment_condition SET DEFAULT 'EFECTIVO';
+ALTER TABLE jobs ALTER COLUMN payment_condition SET DEFAULT 'EFECTIVO';
+UPDATE clients SET payment_condition = 'EFECTIVO' WHERE payment_condition = 'Contado';
+UPDATE jobs SET payment_condition = 'EFECTIVO' WHERE payment_condition = 'Contado';
+UPDATE clients SET payment_condition = 'DEUDA' WHERE payment_condition = 'Deuda';
+UPDATE jobs SET payment_condition = 'DEUDA' WHERE payment_condition = 'Deuda';
 
 CREATE INDEX IF NOT EXISTS idx_clients_unit ON clients (unit_id);
 CREATE INDEX IF NOT EXISTS idx_stock_items_unit ON stock_items (unit_id);

@@ -2,7 +2,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { one, query } from '@/lib/db';
-import { clientVisibilitySql, seesAllClients, showsVehicles } from '@/lib/permissions';
+import {
+  clientVisibilitySql,
+  paymentConditions,
+  seesAllClients,
+  showsVehicles,
+} from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { formatDate, formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash, StatCard } from '@/components/ui';
@@ -238,6 +243,7 @@ export default async function ClientDetailPage({
             action={updateClient}
             submitLabel="Guardar cambios"
             showVehicles={withVehicles}
+            conditions={paymentConditions(user)}
             initial={{
               id: client.id,
               name: client.name,

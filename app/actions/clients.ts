@@ -3,8 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { one, query, withTransaction } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
-import { clientVisibilitySql, seesAllClients } from '@/lib/permissions';
+import { requireUser, type SessionUser } from '@/lib/auth';
+import { parsePaymentCondition } from '@/lib/constants';
+import { clientVisibilitySql, paymentConditions, seesAllClients } from '@/lib/permissions';
 import { flashError, flashSuccess } from '@/lib/flash';
 
 export type VehicleInput = {
@@ -26,13 +27,16 @@ function parseVehicles(raw: FormDataEntryValue | null): VehicleInput[] {
   }
 }
 
-function clientFields(formData: FormData) {
+function clientFields(formData: FormData, user: SessionUser) {
   return {
     name: String(formData.get('name') ?? '').trim(),
     ci_ruc: String(formData.get('ci_ruc') ?? '').trim(),
     phone: String(formData.get('phone') ?? '').trim(),
     address: String(formData.get('address') ?? '').trim(),
-    payment_condition: String(formData.get('payment_condition') ?? 'Contado'),
+    payment_condition: parsePaymentCondition(
+      formData.get('payment_condition'),
+      paymentConditions(user),
+    ),
   };
 }
 
@@ -70,7 +74,7 @@ async function syncVehicles(clientId: number, vehicles: VehicleInput[]) {
 
 export async function createClient(formData: FormData) {
   const user = await requireUser();
-  const fields = clientFields(formData);
+  const fields = clientFields(formData, user);
   if (!fields.name) redirect(flashError('/clientes', 'El nombre del cliente es obligatorio'));
 
   const vehicles = parseVehicles(formData.get('vehicles'));
@@ -121,7 +125,7 @@ export async function createClient(formData: FormData) {
 export async function updateClient(formData: FormData) {
   const user = await requireUser();
   const id = Number(formData.get('id'));
-  const fields = clientFields(formData);
+  const fields = clientFields(formData, user);
   if (!id || !fields.name) redirect(flashError('/clientes', 'Datos del cliente incompletos'));
 
   // Sólo se editan los clientes visibles para el usuario (propios o compartidos).

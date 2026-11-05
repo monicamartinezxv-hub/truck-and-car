@@ -78,6 +78,13 @@ guardan con scrypt (`lib/auth.ts`).
   `app/offline/page.tsx`. Al cambiar `public/sw.js`, subir `VERSION` para invalidar la caché vieja.
   Probar la instalación requiere `next build && next start` o el despliegue: `next dev` registra el
   SW en modo desarrollo, así que no cachea.
+- **Condiciones de pago globales** (`PAYMENT_CONDITIONS` en `lib/constants.ts`): `EFECTIVO`, `DEUDA`,
+  `QR` y `TRANSFERENCIA`. `Contado` ya no existe (el esquema migra `Contado` → `EFECTIVO` y
+  `Deuda` → `DEUDA`). `paymentConditions(user)` (`lib/permissions.ts`) habilita las cuatro sólo para
+  `admin`, `admin2`, `usergomeria`, `usertaller` y `garaje14`; el resto ve `BASIC_PAYMENT_CONDITIONS`.
+  Los formularios de trabajos y clientes reciben esa lista, y `parsePaymentCondition` valida el POST
+  en el servidor (un valor fuera de la lista cae en `EFECTIVO`). Sólo `DEUDA` genera la cuenta por
+  cobrar; la caja cuenta como efectivo únicamente los trabajos con condición `EFECTIVO`.
 - Las acciones redirigen con `?msg=` / `?err=` (ver `lib/flash.ts`) y las páginas los muestran con
   el componente `Flash`. Es el mecanismo de confirmación que reemplaza los toasts del original.
 - Al crear un trabajo con condición **Deuda** se crea automáticamente la cuenta por cobrar; al

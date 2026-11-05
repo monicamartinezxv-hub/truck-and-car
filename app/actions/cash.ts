@@ -44,7 +44,7 @@ export async function closeCash() {
        COALESCE((SELECT sum(amount) FROM sales
                  WHERE unit_id = $1 AND created_by = $2 AND payment_method = 'Efectivo' AND created_at >= $3), 0)
      + COALESCE((SELECT sum(total) FROM jobs
-                 WHERE unit_id = $1 AND created_by = $2 AND payment_condition = 'Contado'
+                 WHERE unit_id = $1 AND created_by = $2 AND payment_condition = 'EFECTIVO'
                    AND created_at >= $3), 0)
      + COALESCE((SELECT sum(amount) FROM debt_payments
                  WHERE unit_id = $1 AND created_by = $2 AND payment_method = 'Efectivo' AND created_at >= $3), 0) AS total`,

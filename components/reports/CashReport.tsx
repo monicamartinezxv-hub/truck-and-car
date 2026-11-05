@@ -92,7 +92,7 @@ export default async function CashReport({ params, unit }: { params: ReportParam
   const jobs = await query<MovementAgg>(
     `SELECT created_by, count(*)::int AS count, sum(total) AS total, sum(total) AS cash
      FROM jobs
-     WHERE payment_condition = 'Contado'
+     WHERE payment_condition = 'EFECTIVO'
        AND ($1 = '' OR service_date >= $1::date)
        AND ($2 = '' OR service_date <= $2::date)
        AND ($3 = '' OR created_by = $3)
@@ -176,7 +176,7 @@ export default async function CashReport({ params, unit }: { params: ReportParam
                   <span className="text-slate-300">
                     <span className="font-medium text-slate-100">{row.operator}</span>
                     <span className="block text-xs text-slate-500">
-                      {row.sessions} sesiones · {row.openSessions} abiertas · {row.jobsCount} trabajos contado
+                      {row.sessions} sesiones · {row.openSessions} abiertas · {row.jobsCount} trabajos efectivo
                     </span>
                   </span>
                   <span className="text-right">
@@ -201,7 +201,7 @@ export default async function CashReport({ params, unit }: { params: ReportParam
                 <DetailItem label="Ventas efectivo" value={formatMoney(row.salesCash)} />
                 <DetailItem label="Cobros" value={formatMoney(row.paymentsTotal)} />
                 <DetailItem label="Cobros efectivo" value={formatMoney(row.paymentsCash)} />
-                <DetailItem label="Trabajos contado" value={formatMoney(row.jobsCash)} />
+                <DetailItem label="Trabajos efectivo" value={formatMoney(row.jobsCash)} />
                 <DetailItem label="Ingresos totales" value={formatMoney(income)} />
                 <DetailItem label="Saldo teórico" value={formatMoney(expected)} />
               </DetailGrid>

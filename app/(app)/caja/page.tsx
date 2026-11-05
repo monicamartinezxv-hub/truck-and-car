@@ -77,7 +77,7 @@ export default async function CashPage({
                  WHERE unit_id = $2 AND created_at >= date_trunc('day', now()) AND payment_method = 'Efectivo'
                    AND ($1::text IS NULL OR created_by = $1)), 0) AS cash_sales,
        COALESCE((SELECT sum(total) FROM jobs
-                 WHERE unit_id = $2 AND service_date = current_date AND payment_condition = 'Contado'
+                 WHERE unit_id = $2 AND service_date = current_date AND payment_condition = 'EFECTIVO'
                    AND ($1::text IS NULL OR created_by = $1)), 0) AS jobs_cash,
        COALESCE((SELECT sum(amount) FROM debt_payments
                  WHERE unit_id = $2 AND created_at >= date_trunc('day', now()) AND payment_method = 'Efectivo'
@@ -136,7 +136,7 @@ export default async function CashPage({
 
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Ventas hoy" value={formatMoney(totals?.sales ?? 0)} tone="amber" hint={`${totals?.sales_count ?? 0} ventas`} />
-        <StatCard label="Trabajos contado" value={formatMoney(totals?.jobs_cash ?? 0)} tone="green" />
+        <StatCard label="Trabajos efectivo" value={formatMoney(totals?.jobs_cash ?? 0)} tone="green" />
         <StatCard label="Cobros de deuda" value={formatMoney(totals?.debt_total ?? 0)} tone="blue" />
         <StatCard label="Ingresos del día" value={formatMoney(grandTotal)} tone="red" hint="Total operativo" />
       </div>

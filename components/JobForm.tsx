@@ -2,7 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { CHECKLIST_ITEMS, CURRENCIES, PAYMENT_CONDITIONS } from '@/lib/constants';
+import {
+  CASH_CONDITION,
+  CHECKLIST_ITEMS,
+  CURRENCIES,
+  PAYMENT_CONDITIONS,
+  type PaymentCondition,
+} from '@/lib/constants';
 import { formatMoney } from '@/lib/format';
 import SubmitButton from '@/components/SubmitButton';
 
@@ -51,6 +57,7 @@ export default function JobForm({
   canEditPrices = false,
   hideServices = false,
   hideChecklist = false,
+  conditions = PAYMENT_CONDITIONS,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   clients: ClientOption[];
@@ -63,6 +70,8 @@ export default function JobForm({
   hideServices?: boolean;
   /** Garaje 14 / admin2 no usan el checklist de revisión. */
   hideChecklist?: boolean;
+  /** Condiciones de pago habilitadas para el usuario (ver `paymentConditions`). */
+  conditions?: readonly PaymentCondition[];
 }) {
   const [items, setItems] = useState<ItemDraft[]>(initial?.items ?? []);
   const [checklist, setChecklist] = useState<Record<string, boolean>>(initial?.checklist ?? {});
@@ -227,9 +236,9 @@ export default function JobForm({
               id="payment_condition"
               name="payment_condition"
               className="input"
-              defaultValue={initial?.payment_condition ?? 'Contado'}
+              defaultValue={initial?.payment_condition ?? CASH_CONDITION}
             >
-              {PAYMENT_CONDITIONS.map((condition) => (
+              {conditions.map((condition) => (
                 <option key={condition} value={condition}>
                   {condition}
                 </option>

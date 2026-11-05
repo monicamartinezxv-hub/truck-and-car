@@ -1,8 +1,28 @@
 export const CURRENCIES = ['PYG', 'USD'] as const;
 export type Currency = (typeof CURRENCIES)[number];
 
-export const PAYMENT_CONDITIONS = ['Contado', 'Deuda'] as const;
+export const PAYMENT_CONDITIONS = ['EFECTIVO', 'DEUDA', 'QR', 'TRANSFERENCIA'] as const;
 export type PaymentCondition = (typeof PAYMENT_CONDITIONS)[number];
+
+/** Condiciones para perfiles sin acceso a QR y transferencia. */
+export const BASIC_PAYMENT_CONDITIONS: readonly PaymentCondition[] = ['EFECTIVO', 'DEUDA'];
+
+/** Condición que representa el pago al momento en efectivo. */
+export const CASH_CONDITION: PaymentCondition = 'EFECTIVO';
+/** Condición que genera la cuenta por cobrar. */
+export const DEBT_CONDITION: PaymentCondition = 'DEUDA';
+
+/**
+ * Valida la condición enviada por el formulario. Una condición fuera de la
+ * lista permitida (POST manipulado o sesión sin permiso) cae en EFECTIVO.
+ */
+export function parsePaymentCondition(
+  value: FormDataEntryValue | null | undefined,
+  allowed: readonly PaymentCondition[] = PAYMENT_CONDITIONS,
+): PaymentCondition {
+  const raw = String(value ?? '').trim().toUpperCase();
+  return allowed.find((condition) => condition === raw) ?? CASH_CONDITION;
+}
 
 export const PAYMENT_METHODS = ['Efectivo', 'Transferencia', 'QR'] as const;
 
