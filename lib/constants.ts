@@ -7,6 +7,14 @@ export type PaymentCondition = (typeof PAYMENT_CONDITIONS)[number];
 /** Condiciones para perfiles sin acceso a QR y transferencia. */
 export const BASIC_PAYMENT_CONDITIONS: readonly PaymentCondition[] = ['EFECTIVO', 'DEUDA'];
 
+/** Etiqueta legible de cada condición (tarjetas, filtros y reportes). */
+export const PAYMENT_CONDITION_LABELS: Record<PaymentCondition, string> = {
+  EFECTIVO: 'Efectivo',
+  DEUDA: 'Deuda / Cuenta Corriente',
+  QR: 'QR',
+  TRANSFERENCIA: 'Transferencia',
+};
+
 /** Condición que representa el pago al momento en efectivo. */
 export const CASH_CONDITION: PaymentCondition = 'EFECTIVO';
 /** Condición que genera la cuenta por cobrar. */

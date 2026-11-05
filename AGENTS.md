@@ -85,6 +85,16 @@ guardan con scrypt (`lib/auth.ts`).
   Los formularios de trabajos y clientes reciben esa lista, y `parsePaymentCondition` valida el POST
   en el servidor (un valor fuera de la lista cae en `EFECTIVO`). Sólo `DEUDA` genera la cuenta por
   cobrar; la caja cuenta como efectivo únicamente los trabajos con condición `EFECTIVO`.
+- **Ingresos desglosados por método**: `/caja` muestra arriba las tarjetas *Total efectivo /
+  transferencia / QR / deuda* del día, agrupando por método el `UNION` de
+  `sales.payment_method`, `jobs.payment_condition` y `debt_payments.payment_method`
+  (normalizado con `upper()`), y en la caja abierta el recaudado del turno por método junto al
+  efectivo esperado para el arqueo. El informe `Cierre de Caja` (y la vista de admin2 en
+  `GarageCashClose`) agrupa esos mismos tres orígenes por operario y método. Los informes
+  `trabajos`, `gestion` y `cliente` aceptan `?cond=EFECTIVO|DEUDA|QR|TRANSFERENCIA`
+  (`ReportMeta.conditions` en `lib/reports.ts`) y muestran la condición como etiqueta visible;
+  en `debt_payments` el filtro compara `upper(payment_method)`, así "Transferencia" trae también
+  los abonos cobrados de esa forma.
 - Las acciones redirigen con `?msg=` / `?err=` (ver `lib/flash.ts`) y las páginas los muestran con
   el componente `Flash`. Es el mecanismo de confirmación que reemplaza los toasts del original.
 - Al crear un trabajo con condición **Deuda** se crea automáticamente la cuenta por cobrar; al

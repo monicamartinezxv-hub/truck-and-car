@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { query } from '@/lib/db';
+import PaymentConditionBadge from '@/components/PaymentConditionBadge';
 import { formatDate, formatMoney } from '@/lib/format';
 import { periodLabel, type ReportParams } from '@/lib/reports';
 import { EmptyState } from '@/components/ui';
@@ -20,7 +21,7 @@ type JobRow = {
 };
 
 export default async function JobsReport({ params, unit }: { params: ReportParams; unit: string }) {
-  const { from, to, user } = params;
+  const { from, to, user, cond } = params;
 
   const jobs = await query<JobRow>(
     `SELECT j.id, j.client_name, j.plate, j.service_date, j.end_date, j.description,
@@ -32,8 +33,9 @@ export default async function JobsReport({ params, unit }: { params: ReportParam
        AND ($2 = '' OR j.service_date <= $2::date)
        AND ($3 = '' OR j.created_by = $3)
        AND ($4 = '' OR j.unit_id = $4)
+       AND ($5 = '' OR j.payment_condition = $5)
      ORDER BY j.service_date DESC, j.id DESC`,
-    [from, to, user, unit],
+    [from, to, user, unit, cond],
   );
 
   const byOperator = new Map<string, { count: number; total: number }>();
@@ -79,11 +81,16 @@ export default async function JobsReport({ params, unit }: { params: ReportParam
                     {job.description || 'Sin detalle'}
                   </span>
                 </span>
-                <span className="text-right">
-                  <span className="block font-semibold text-slate-100">
-                    {formatMoney(job.total, job.currency)}
+                <span className="flex items-center gap-2">
+                  <PaymentConditionBadge condition={job.payment_condition} />
+                  <span className="text-right">
+                    <span className="block font-semibold text-slate-100">
+                      {formatMoney(job.total, job.currency)}
+                    </span>
+                    <span className="block text-[11px] text-slate-500">
+                      {job.created_by || 'Sin operario'}
+                    </span>
                   </span>
-                  <span className="block text-[11px] text-slate-500">{job.created_by || 'Sin operario'}</span>
                 </span>
               </>
             }

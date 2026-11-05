@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { FormEvent } from 'react';
 import type { ReportMeta, ReportParams } from '@/lib/reports';
+import { PAYMENT_CONDITION_LABELS, PAYMENT_CONDITIONS } from '@/lib/constants';
 
-const FILTER_KEYS = ['from', 'to', 'user', 'q'];
+const FILTER_KEYS = ['from', 'to', 'user', 'q', 'cond'];
 
 export default function ReportFilters({
   meta,
@@ -20,7 +21,7 @@ export default function ReportFilters({
   basePath?: string;
 }) {
   const router = useRouter();
-  const active = Boolean(params.from || params.to || params.user || params.q);
+  const active = Boolean(params.from || params.to || params.user || params.q || params.cond);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,6 +63,22 @@ export default function ReportFilters({
             {operators.map((username) => (
               <option key={username} value={username}>
                 {username}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+
+      {meta.conditions ? (
+        <div>
+          <label className="label" htmlFor="cond">
+            Condición de pago
+          </label>
+          <select id="cond" name="cond" defaultValue={params.cond} className="input min-w-[11rem]">
+            <option value="">Todas las condiciones</option>
+            {PAYMENT_CONDITIONS.map((condition) => (
+              <option key={condition} value={condition}>
+                {PAYMENT_CONDITION_LABELS[condition]}
               </option>
             ))}
           </select>
