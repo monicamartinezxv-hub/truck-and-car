@@ -68,6 +68,24 @@ export default function Sidebar({ user, items }: { user: SessionUser; items: Nav
     </nav>
   );
 
+  const session = (
+    <div className="space-y-3 border-t border-surface/60 pt-4">
+      <div className="px-2">
+        <p className="text-sm font-semibold text-white">{user.username}</p>
+        <p className="text-xs text-slate-400">{user.label}</p>
+        <p className="mt-1 inline-flex rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+          {unitLabel(user.unit)}
+        </p>
+      </div>
+      <form method="post" action="/api/logout">
+        <button type="submit" className="btn-secondary w-full justify-start px-2 py-1.5 text-xs">
+          <LogOut className="h-3.5 w-3.5" />
+          Cerrar sesión
+        </button>
+      </form>
+    </div>
+  );
+
   return (
     <>
       <div className="flex items-center justify-between border-b border-surface/60 bg-card px-4 py-3 lg:hidden">
@@ -88,7 +106,10 @@ export default function Sidebar({ user, items }: { user: SessionUser; items: Nav
       </div>
 
       {open ? (
-        <div className="border-b border-surface/60 bg-card p-3 lg:hidden">{links}</div>
+        <div className="border-b border-surface/60 bg-card p-3 lg:hidden">
+          {links}
+          <div className="mt-3">{session}</div>
+        </div>
       ) : null}
 
       <aside className="hidden w-64 shrink-0 flex-col border-r border-surface/60 bg-card px-3 py-5 lg:flex">
@@ -103,21 +124,7 @@ export default function Sidebar({ user, items }: { user: SessionUser; items: Nav
 
         {links}
 
-        <div className="mt-auto space-y-3 border-t border-surface/60 pt-4">
-          <div className="px-2">
-            <p className="text-sm font-semibold text-white">{user.username}</p>
-            <p className="text-xs text-slate-400">{user.label}</p>
-            <p className="mt-1 inline-flex rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
-              {unitLabel(user.unit)}
-            </p>
-          </div>
-          <form method="post" action="/api/logout">
-            <button type="submit" className="btn-secondary w-full justify-start px-2 py-1.5 text-xs">
-              <LogOut className="h-3.5 w-3.5" />
-              Cerrar sesión
-            </button>
-          </form>
-        </div>
+        <div className="mt-auto">{session}</div>
       </aside>
     </>
   );
