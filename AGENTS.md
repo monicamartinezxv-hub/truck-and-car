@@ -66,6 +66,18 @@ guardan con scrypt (`lib/auth.ts`).
   barra móvil). Si el archivo no está, el login cae al icono del camión de `lucide-react`, así
   nunca queda una imagen rota. La lista de "Usuarios de prueba"
   ya no se muestra en el login; las credenciales sembradas están en la tabla de arriba.
+- **PWA instalable** (Android e iOS): `app/manifest.ts` publica `/manifest.webmanifest`
+  (`name` "Truck and Car", `short_name` "Truck & Car", `display: standalone`), `app/icon.png` y
+  `app/apple-icon.png` los maneja Next por convención, y los iconos del manifiesto están en
+  `public/icons/` (192, 512 y maskable 512). `app/layout.tsx` agrega `appleWebApp`
+  (`apple-mobile-web-app-capable`, título y barra de estado) y `themeColor`. El service worker
+  `public/sw.js` lo registra `components/ServiceWorkerRegister.tsx`: en **desarrollo** se registra
+  con `?env=development` y no intercepta nada (no rompe el hot reload); en **producción** precachea
+  manifiesto, iconos, logo y `/offline`, y sirve cache-first sólo `/_next/static/*` y `/icons/*`.
+  Las páginas y los datos nunca se cachean (llevan sesión y unidad); sin red, una navegación cae a
+  `app/offline/page.tsx`. Al cambiar `public/sw.js`, subir `VERSION` para invalidar la caché vieja.
+  Probar la instalación requiere `next build && next start` o el despliegue: `next dev` registra el
+  SW en modo desarrollo, así que no cachea.
 - Las acciones redirigen con `?msg=` / `?err=` (ver `lib/flash.ts`) y las páginas los muestran con
   el componente `Flash`. Es el mecanismo de confirmación que reemplaza los toasts del original.
 - Al crear un trabajo con condición **Deuda** se crea automáticamente la cuenta por cobrar; al
