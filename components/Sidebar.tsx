@@ -72,7 +72,8 @@ export default function Sidebar({ user, items }: { user: SessionUser; items: Nav
     <>
       <div className="flex items-center justify-between border-b border-surface/60 bg-card px-4 py-3 lg:hidden">
         <div className="flex items-center gap-2">
-          <Truck className="h-5 w-5 text-accent" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-truckcar.png" alt="" className="h-7 w-7 object-contain" />
           <span className="text-sm font-black tracking-wide">TRUCK AND CAR</span>
         </div>
         <button
@@ -92,7 +93,8 @@ export default function Sidebar({ user, items }: { user: SessionUser; items: Nav
 
       <aside className="hidden w-64 shrink-0 flex-col border-r border-surface/60 bg-card px-3 py-5 lg:flex">
         <div className="mb-6 flex items-center gap-2 px-2">
-          <Truck className="h-6 w-6 text-accent" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-truckcar.png" alt="" className="h-9 w-9 object-contain" />
           <div>
             <p className="text-sm font-black tracking-wide text-white">TRUCK AND CAR</p>
             <p className="text-[10px] uppercase tracking-widest text-slate-500">Gomería · Taller</p>

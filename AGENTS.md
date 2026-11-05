@@ -60,9 +60,11 @@ guardan con scrypt (`lib/auth.ts`).
   Con un POST a un route handler el login nunca depende de un ID de acción.
 - `app/global-error.tsx` reemplaza el error genérico de Next por un aviso con botón **Recargar**
   (pasa cuando la app se recompila con la ventana abierta).
-- **Logo del login**: `app/login/page.tsx` muestra `components/BrandLogo.tsx`, que sirve
-  `public/logo-truckcar.jpg` (mismo nombre) dentro de un panel blanco. Si el archivo no está, cae
-  al icono del camión de `lucide-react`, así el login nunca queda con una imagen rota. La lista de "Usuarios de prueba"
+- **Logo de la marca**: `public/logo-truckcar.png` es el isotipo (rombo "TC"), recortado y con
+  fondo transparente para verse sobre el fondo oscuro. Lo usan `components/BrandLogo.tsx` (login,
+  arriba del título "TRUCK AND CAR") y el encabezado de `components/Sidebar.tsx` (barra lateral y
+  barra móvil). Si el archivo no está, el login cae al icono del camión de `lucide-react`, así
+  nunca queda una imagen rota. La lista de "Usuarios de prueba"
   ya no se muestra en el login; las credenciales sembradas están en la tabla de arriba.
 - Las acciones redirigen con `?msg=` / `?err=` (ver `lib/flash.ts`) y las páginas los muestran con
   el componente `Flash`. Es el mecanismo de confirmación que reemplaza los toasts del original.
