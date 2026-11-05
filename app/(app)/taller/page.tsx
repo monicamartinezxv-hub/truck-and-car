@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { Plus, Search, Trash2 } from 'lucide-react';
 import { query } from '@/lib/db';
-import { jobOwnerScope, workshopLabel } from '@/lib/permissions';
+import { jobOwnerScope, paymentConditions, workshopLabel } from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { formatDate, formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash } from '@/components/ui';
 import ConfirmButton from '@/components/ConfirmButton';
+import PaymentConditionBadge from '@/components/PaymentConditionBadge';
 import { deleteJob } from '@/app/actions/jobs';
 import type { FlashParams } from '@/lib/flash';
 
@@ -29,7 +30,8 @@ export default async function WorkshopPage({
   const user = await requireModule('/taller');
   const { q = '', cond = '', msg, err } = await searchParams;
   const term = q.trim();
-  const condition = cond === 'Deuda' || cond === 'Contado' ? cond : '';
+  const conditions = paymentConditions(user);
+  const condition = conditions.find((option) => option === cond) ?? '';
 
   // Privacidad por operario: usertaller y usergomeria sólo ven sus trabajos.
   const jobs = await query<JobRow>(
@@ -74,8 +76,11 @@ export default async function WorkshopPage({
         </div>
         <select name="cond" defaultValue={condition} className="input w-auto">
           <option value="">Todas las condiciones</option>
-          <option value="Contado">Contado</option>
-          <option value="Deuda">Deuda</option>
+          {conditions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
         </select>
         <button type="submit" className="btn-secondary">
           Filtrar
@@ -112,15 +117,7 @@ export default async function WorkshopPage({
                   <td className="max-w-[22rem] truncate text-slate-300">{job.description || '-'}</td>
                   <td className="text-slate-400">{job.items_count}</td>
                   <td>
-                    <span
-                      className={`badge ${
-                        job.payment_condition === 'Deuda'
-                          ? 'bg-amber-500/15 text-amber-300'
-                          : 'bg-emerald-500/15 text-emerald-300'
-                      }`}
-                    >
-                      {job.payment_condition}
-                    </span>
+                    <PaymentConditionBadge condition={job.payment_condition} />
                   </td>
                   <td className="text-right font-semibold">{formatMoney(job.total, job.currency)}</td>
                   <td className="text-right">

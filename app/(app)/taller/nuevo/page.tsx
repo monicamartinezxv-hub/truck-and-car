@@ -2,7 +2,13 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { query } from '@/lib/db';
 import { canEditPrices } from '@/lib/auth';
-import { clientVisibilitySql, seesAllClients, stockSection, usesMaintenance } from '@/lib/permissions';
+import {
+  clientVisibilitySql,
+  paymentConditions,
+  seesAllClients,
+  stockSection,
+  usesMaintenance,
+} from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { SERVICES } from '@/lib/constants';
 import PageHeader, { Flash } from '@/components/ui';
@@ -62,6 +68,7 @@ export default async function NewJobPage({
         canEditPrices={canEditPrices(user.role)}
         hideServices={maintenance}
         hideChecklist={maintenance}
+        conditions={paymentConditions(user)}
       />
     </div>
   );

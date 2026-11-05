@@ -3,6 +3,7 @@ import { one, query } from '@/lib/db';
 import { daysSince, formatDate, formatMoney } from '@/lib/format';
 import { periodLabel, type ReportParams } from '@/lib/reports';
 import { EmptyState } from '@/components/ui';
+import PaymentConditionBadge from '@/components/PaymentConditionBadge';
 import { DetailGrid, DetailItem, Drill, Metric, ReportFrame } from './ui';
 
 type ClientMatch = { id: number; name: string; ci_ruc: string };
@@ -57,7 +58,7 @@ type PaymentRow = {
 };
 
 export default async function ClientDetailReport({ params, unit }: { params: ReportParams; unit: string }) {
-  const { from, to, user, q } = params;
+  const { from, to, user, q, cond } = params;
 
   const matches = await query<ClientMatch>(
     `SELECT id, name, ci_ruc FROM clients
@@ -95,8 +96,9 @@ export default async function ClientDetailReport({ params, unit }: { params: Rep
            AND ($2 = '' OR j.service_date >= $2::date) AND ($3 = '' OR j.service_date <= $3::date)
            AND ($4 = '' OR j.created_by = $4)
            AND ($5 = '' OR j.unit_id = $5)
+           AND ($6 = '' OR j.payment_condition = $6)
          ORDER BY j.service_date DESC, j.id DESC`,
-        [client.id, from, to, user, unit],
+        [client.id, from, to, user, unit, cond],
       )
     : [];
 
@@ -123,8 +125,9 @@ export default async function ClientDetailReport({ params, unit }: { params: Rep
            AND ($3 = '' OR created_at < ($3::date + interval '1 day'))
            AND ($4 = '' OR created_by = $4)
            AND ($5 = '' OR unit_id = $5)
+           AND ($6 = '' OR upper(payment_method) = $6)
          ORDER BY created_at DESC`,
-        [client.id, from, to, user, unit],
+        [client.id, from, to, user, unit, cond],
       )
     : [];
 
@@ -155,7 +158,7 @@ export default async function ClientDetailReport({ params, unit }: { params: Rep
           {matches.slice(0, 12).map((option) => (
             <Link
               key={option.id}
-              href={`/informes?report=cliente&client=${option.id}&from=${from}&to=${to}&user=${user}&q=${encodeURIComponent(q)}`}
+              href={`/informes?report=cliente&client=${option.id}&from=${from}&to=${to}&user=${user}&q=${encodeURIComponent(q)}&cond=${cond}`}
               className={option.id === client?.id ? 'btn-primary text-xs' : 'btn-secondary text-xs'}
             >
               {option.name}
@@ -217,8 +220,11 @@ export default async function ClientDetailReport({ params, unit }: { params: Rep
                         <span className="text-slate-500">{formatDate(job.service_date)}</span> ·{' '}
                         {job.description || 'Sin detalle'}
                       </span>
-                      <span className="font-semibold text-slate-100">
-                        {formatMoney(job.total, job.currency)}
+                      <span className="flex items-center gap-2">
+                        <PaymentConditionBadge condition={job.payment_condition} />
+                        <span className="font-semibold text-slate-100">
+                          {formatMoney(job.total, job.currency)}
+                        </span>
                       </span>
                     </>
                   }

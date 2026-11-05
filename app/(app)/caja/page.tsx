@@ -51,6 +51,16 @@ type TodayTotals = {
 
 type StockOption = { id: number; product_name: string; quantity: number; price: number };
 
+type MethodTotal = { method: string; total: number; count: number };
+
+/** Suma los montos agrupados por método en un mapa por condición. */
+function byMethod(rows: MethodTotal[]): Record<string, number> {
+  return rows.reduce<Record<string, number>>((acc, row) => {
+    acc[row.method] = (acc[row.method] ?? 0) + Number(row.total);
+    return acc;
+  }, {});
+}
+
 export default async function CashPage({
   searchParams,
 }: {
@@ -77,7 +87,7 @@ export default async function CashPage({
                  WHERE unit_id = $2 AND created_at >= date_trunc('day', now()) AND payment_method = 'Efectivo'
                    AND ($1::text IS NULL OR created_by = $1)), 0) AS cash_sales,
        COALESCE((SELECT sum(total) FROM jobs
-                 WHERE unit_id = $2 AND service_date = current_date AND payment_condition = 'Contado'
+                 WHERE unit_id = $2 AND service_date = current_date AND payment_condition = 'EFECTIVO'
                    AND ($1::text IS NULL OR created_by = $1)), 0) AS jobs_cash,
        COALESCE((SELECT sum(amount) FROM debt_payments
                  WHERE unit_id = $2 AND created_at >= date_trunc('day', now()) AND payment_method = 'Efectivo'
@@ -90,6 +100,49 @@ export default async function CashPage({
           AND ($1::text IS NULL OR created_by = $1)) AS sales_count`,
     [scope, user.unit],
   );
+
+  // Ingresos de hoy agrupados por método: ventas, trabajos y cobros de deuda.
+  const todayMethods = await query<MethodTotal>(
+    `SELECT method, sum(amount) AS total, count(*)::int AS count
+     FROM (
+       SELECT upper(payment_method) AS method, amount FROM sales
+       WHERE unit_id = $2 AND created_at >= date_trunc('day', now())
+         AND ($1::text IS NULL OR created_by = $1)
+       UNION ALL
+       SELECT payment_condition, total FROM jobs
+       WHERE unit_id = $2 AND service_date = current_date
+         AND ($1::text IS NULL OR created_by = $1)
+       UNION ALL
+       SELECT upper(payment_method), amount FROM debt_payments
+       WHERE unit_id = $2 AND created_at >= date_trunc('day', now())
+         AND ($1::text IS NULL OR created_by = $1)
+     ) movements
+     GROUP BY method`,
+    [scope, user.unit],
+  );
+
+  // Desglose del turno abierto, para el arqueo al cerrar la caja.
+  const sessionMethods = session
+    ? await query<MethodTotal>(
+        `SELECT method, sum(amount) AS total, count(*)::int AS count
+         FROM (
+           SELECT upper(payment_method) AS method, amount FROM sales
+           WHERE unit_id = $1 AND created_by = $2 AND created_at >= $3
+           UNION ALL
+           SELECT payment_condition, total FROM jobs
+           WHERE unit_id = $1 AND created_by = $2 AND created_at >= $3
+             AND payment_condition <> 'DEUDA'
+           UNION ALL
+           SELECT upper(payment_method), amount FROM debt_payments
+           WHERE unit_id = $1 AND created_by = $2 AND created_at >= $3
+         ) movements
+         GROUP BY method`,
+        [user.unit, user.username, session.opened_at],
+      )
+    : [];
+
+  const today = byMethod(todayMethods);
+  const turn = byMethod(sessionMethods);
 
   const sales = await query<SaleRow>(
     `SELECT id, client_name, ci_ruc, description, amount, currency, payment_method,
@@ -134,9 +187,35 @@ export default async function CashPage({
       />
       <Flash success={msg} error={err} />
 
+      <section className="mb-5">
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Ingresos de hoy por método de pago
+        </h2>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard
+            label="Total efectivo"
+            value={formatMoney(today.EFECTIVO ?? 0)}
+            tone="green"
+            hint="Ventas, trabajos y cobros"
+          />
+          <StatCard
+            label="Total transferencia"
+            value={formatMoney(today.TRANSFERENCIA ?? 0)}
+            tone="blue"
+          />
+          <StatCard label="Total QR" value={formatMoney(today.QR ?? 0)} tone="blue" />
+          <StatCard
+            label="Total deuda / cuenta corriente"
+            value={formatMoney(today.DEUDA ?? 0)}
+            tone="amber"
+            hint="Facturado a crédito hoy"
+          />
+        </div>
+      </section>
+
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Ventas hoy" value={formatMoney(totals?.sales ?? 0)} tone="amber" hint={`${totals?.sales_count ?? 0} ventas`} />
-        <StatCard label="Trabajos contado" value={formatMoney(totals?.jobs_cash ?? 0)} tone="green" />
+        <StatCard label="Trabajos efectivo" value={formatMoney(totals?.jobs_cash ?? 0)} tone="green" />
         <StatCard label="Cobros de deuda" value={formatMoney(totals?.debt_total ?? 0)} tone="blue" />
         <StatCard label="Ingresos del día" value={formatMoney(grandTotal)} tone="red" hint="Total operativo" />
       </div>
@@ -152,12 +231,31 @@ export default async function CashPage({
                 <span className="text-slate-400">Monto inicial</span>
                 <span className="font-semibold">{formatMoney(session.opening_amount)}</span>
               </div>
+              <p className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                Recaudado en el turno por método
+              </p>
               <div className="flex justify-between">
-                <span className="text-slate-400">Ingresos en efectivo</span>
-                <span className="font-semibold text-emerald-300">{formatMoney(cashIn)}</span>
+                <span className="text-slate-400">Efectivo</span>
+                <span className="font-semibold text-emerald-300">{formatMoney(turn.EFECTIVO ?? 0)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Transferencia</span>
+                <span className="font-semibold text-blue-300">{formatMoney(turn.TRANSFERENCIA ?? 0)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">QR</span>
+                <span className="font-semibold text-blue-300">{formatMoney(turn.QR ?? 0)}</span>
               </div>
               <div className="flex justify-between border-t border-surface/60 pt-2">
-                <span className="text-slate-300">Total esperado</span>
+                <span className="text-slate-400">Total recaudado</span>
+                <span className="font-semibold text-slate-200">
+                  {formatMoney(
+                    (turn.EFECTIVO ?? 0) + (turn.TRANSFERENCIA ?? 0) + (turn.QR ?? 0),
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-300">Efectivo esperado en caja</span>
                 <span className="font-bold text-accent">
                   {formatMoney(Number(session.opening_amount) + cashIn)}
                 </span>

@@ -1,4 +1,5 @@
 import { query } from '@/lib/db';
+import { PAYMENT_CONDITION_LABELS, type PaymentCondition } from '@/lib/constants';
 import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import { periodLabel, type ReportParams } from '@/lib/reports';
 import { EmptyState } from '@/components/ui';
@@ -26,6 +27,8 @@ type OperatorTotals = {
   paymentsCash: number;
   jobsCash: number;
   jobsCount: number;
+  /** Recaudado por método normalizado: EFECTIVO, TRANSFERENCIA, QR y DEUDA. */
+  methods: Record<string, number>;
   history: SessionRow[];
 };
 
@@ -35,6 +38,15 @@ type MovementAgg = {
   total: number;
   cash: number;
 };
+
+type MethodTotal = {
+  operator: string;
+  method: string;
+  total: number;
+  count: number;
+};
+
+const label = (condition: PaymentCondition) => PAYMENT_CONDITION_LABELS[condition];
 
 const emptyTotals = (operator: string): OperatorTotals => ({
   operator,
@@ -48,6 +60,7 @@ const emptyTotals = (operator: string): OperatorTotals => ({
   paymentsCash: 0,
   jobsCash: 0,
   jobsCount: 0,
+  methods: {},
   history: [],
 });
 
@@ -92,12 +105,41 @@ export default async function CashReport({ params, unit }: { params: ReportParam
   const jobs = await query<MovementAgg>(
     `SELECT created_by, count(*)::int AS count, sum(total) AS total, sum(total) AS cash
      FROM jobs
-     WHERE payment_condition = 'Contado'
+     WHERE payment_condition = 'EFECTIVO'
        AND ($1 = '' OR service_date >= $1::date)
        AND ($2 = '' OR service_date <= $2::date)
        AND ($3 = '' OR created_by = $3)
        AND ($4 = '' OR unit_id = $4)
      GROUP BY created_by`,
+    [from, to, user, unit],
+  );
+
+  // Recaudación agrupada por método: ventas, trabajos y cobros de deuda del período.
+  const methodTotals = await query<MethodTotal>(
+    `SELECT operator, method, sum(amount) AS total, count(*)::int AS count
+     FROM (
+       SELECT created_by AS operator, upper(payment_method) AS method, amount
+       FROM sales
+       WHERE ($1 = '' OR created_at >= $1::date)
+         AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
+         AND ($3 = '' OR created_by = $3)
+         AND ($4 = '' OR unit_id = $4)
+       UNION ALL
+       SELECT created_by, payment_condition, total
+       FROM jobs
+       WHERE ($1 = '' OR service_date >= $1::date)
+         AND ($2 = '' OR service_date <= $2::date)
+         AND ($3 = '' OR created_by = $3)
+         AND ($4 = '' OR unit_id = $4)
+       UNION ALL
+       SELECT created_by, upper(payment_method), amount
+       FROM debt_payments
+       WHERE ($1 = '' OR created_at >= $1::date)
+         AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
+         AND ($3 = '' OR created_by = $3)
+         AND ($4 = '' OR unit_id = $4)
+     ) movements
+     GROUP BY operator, method`,
     [from, to, user, unit],
   );
 
@@ -136,6 +178,11 @@ export default async function CashReport({ params, unit }: { params: ReportParam
     row.jobsCount += Number(job.count);
   });
 
+  methodTotals.forEach((entry) => {
+    const row = ensure(entry.operator);
+    row.methods[entry.method] = (row.methods[entry.method] ?? 0) + Number(entry.total);
+  });
+
   const operators = Array.from(totals.values()).sort(
     (a, b) =>
       b.salesCash + b.paymentsCash + b.jobsCash - (a.salesCash + a.paymentsCash + a.jobsCash),
@@ -149,6 +196,13 @@ export default async function CashReport({ params, unit }: { params: ReportParam
     { opening: 0, income: 0 },
   );
 
+  const grandMethods = operators.reduce<Record<string, number>>((acc, row) => {
+    Object.entries(row.methods).forEach(([method, total]) => {
+      acc[method] = (acc[method] ?? 0) + total;
+    });
+    return acc;
+  }, {});
+
   return (
     <ReportFrame
       title="Cierre de Caja"
@@ -157,7 +211,10 @@ export default async function CashReport({ params, unit }: { params: ReportParam
     >
       <div className="mb-3 grid gap-2 sm:grid-cols-3">
         <Metric label="Aperturas" value={formatMoney(grandTotal.opening)} />
-        <Metric label="Ingresos en efectivo" value={formatMoney(grandTotal.income)} tone="green" />
+        <Metric label={`Total ${label('EFECTIVO')}`} value={formatMoney(grandMethods.EFECTIVO ?? 0)} tone="green" />
+        <Metric label={`Total ${label('TRANSFERENCIA')}`} value={formatMoney(grandMethods.TRANSFERENCIA ?? 0)} />
+        <Metric label={`Total ${label('QR')}`} value={formatMoney(grandMethods.QR ?? 0)} />
+        <Metric label={label('DEUDA')} value={formatMoney(grandMethods.DEUDA ?? 0)} tone="amber" />
         <Metric label="Sesiones" value={String(sessions.length)} tone="amber" />
       </div>
 
@@ -176,7 +233,7 @@ export default async function CashReport({ params, unit }: { params: ReportParam
                   <span className="text-slate-300">
                     <span className="font-medium text-slate-100">{row.operator}</span>
                     <span className="block text-xs text-slate-500">
-                      {row.sessions} sesiones · {row.openSessions} abiertas · {row.jobsCount} trabajos contado
+                      {row.sessions} sesiones · {row.openSessions} abiertas · {row.jobsCount} trabajos efectivo
                     </span>
                   </span>
                   <span className="text-right">
@@ -201,7 +258,14 @@ export default async function CashReport({ params, unit }: { params: ReportParam
                 <DetailItem label="Ventas efectivo" value={formatMoney(row.salesCash)} />
                 <DetailItem label="Cobros" value={formatMoney(row.paymentsTotal)} />
                 <DetailItem label="Cobros efectivo" value={formatMoney(row.paymentsCash)} />
-                <DetailItem label="Trabajos contado" value={formatMoney(row.jobsCash)} />
+                <DetailItem label="Trabajos efectivo" value={formatMoney(row.jobsCash)} />
+                <DetailItem label={`Recaudado ${label('EFECTIVO')}`} value={formatMoney(row.methods.EFECTIVO ?? 0)} />
+                <DetailItem
+                  label={`Recaudado ${label('TRANSFERENCIA')}`}
+                  value={formatMoney(row.methods.TRANSFERENCIA ?? 0)}
+                />
+                <DetailItem label={`Recaudado ${label('QR')}`} value={formatMoney(row.methods.QR ?? 0)} />
+                <DetailItem label={label('DEUDA')} value={formatMoney(row.methods.DEUDA ?? 0)} />
                 <DetailItem label="Ingresos totales" value={formatMoney(income)} />
                 <DetailItem label="Saldo teórico" value={formatMoney(expected)} />
               </DetailGrid>

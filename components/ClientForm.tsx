@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { PAYMENT_CONDITIONS } from '@/lib/constants';
+import { CASH_CONDITION, PAYMENT_CONDITIONS, type PaymentCondition } from '@/lib/constants';
 import SubmitButton from '@/components/SubmitButton';
 
 export type VehicleDraft = {
@@ -37,12 +37,15 @@ export default function ClientForm({
   initial,
   submitLabel,
   showVehicles = true,
+  conditions = PAYMENT_CONDITIONS,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   initial?: ClientDraft;
   submitLabel: string;
   /** Garaje 14 y admin2 no cargan vehículos (ver `showsVehicles`). */
   showVehicles?: boolean;
+  /** Condiciones de pago habilitadas para el usuario (ver `paymentConditions`). */
+  conditions?: readonly PaymentCondition[];
 }) {
   const [vehicles, setVehicles] = useState<VehicleDraft[]>(
     initial?.vehicles.length ? initial.vehicles : [EMPTY_VEHICLE],
@@ -106,9 +109,9 @@ export default function ClientForm({
             id="payment_condition"
             name="payment_condition"
             className="input"
-            defaultValue={initial?.payment_condition ?? 'Contado'}
+            defaultValue={initial?.payment_condition ?? CASH_CONDITION}
           >
-            {PAYMENT_CONDITIONS.map((condition) => (
+            {conditions.map((condition) => (
               <option key={condition} value={condition}>
                 {condition}
               </option>

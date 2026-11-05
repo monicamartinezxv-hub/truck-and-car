@@ -1,5 +1,6 @@
 import { query } from './db';
 import { formatDate } from './format';
+import { PAYMENT_CONDITIONS, type PaymentCondition } from './constants';
 
 export type ReportMeta = {
   id: string;
@@ -8,6 +9,8 @@ export type ReportMeta = {
   period: 'range' | 'none';
   operators: boolean;
   clientSearch?: boolean;
+  /** Habilita el filtro por condición de pago (informes de trabajos/ventas). */
+  conditions?: boolean;
 };
 
 export const REPORTS: ReportMeta[] = [
@@ -18,6 +21,7 @@ export const REPORTS: ReportMeta[] = [
     period: 'range',
     operators: true,
     clientSearch: true,
+    conditions: true,
   },
   {
     id: 'cubiertas',
@@ -33,6 +37,7 @@ export const REPORTS: ReportMeta[] = [
     description: 'Movimientos y balance por cliente en un rango de fechas.',
     period: 'range',
     operators: true,
+    conditions: true,
   },
   {
     id: 'credito',
@@ -68,6 +73,7 @@ export const REPORTS: ReportMeta[] = [
     description: 'Historial detallado de trabajos por fecha y operario.',
     period: 'range',
     operators: true,
+    conditions: true,
   },
 ];
 
@@ -82,6 +88,8 @@ export type ReportParams = {
   user: string;
   q: string;
   client: string;
+  /** Condición de pago por la que se filtra el informe ('' = todas). */
+  cond: string;
 };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -91,6 +99,7 @@ export function parseReportParams(params: Record<string, string | string[] | und
     const value = params[key];
     return typeof value === 'string' ? value.trim() : '';
   };
+  const condition = text('cond').toUpperCase();
   return {
     report: text('report'),
     from: DATE_RE.test(text('from')) ? text('from') : '',
@@ -98,6 +107,7 @@ export function parseReportParams(params: Record<string, string | string[] | und
     user: text('user'),
     q: text('q'),
     client: text('client'),
+    cond: PAYMENT_CONDITIONS.includes(condition as PaymentCondition) ? condition : '',
   };
 }
 

@@ -1,11 +1,17 @@
 import Link from 'next/link';
 import { Plus, Search } from 'lucide-react';
 import { query } from '@/lib/db';
-import { clientVisibilitySql, seesAllClients, showsVehicles } from '@/lib/permissions';
+import {
+  clientVisibilitySql,
+  paymentConditions,
+  seesAllClients,
+  showsVehicles,
+} from '@/lib/permissions';
 import { requireModule } from '@/lib/nav';
 import { formatMoney } from '@/lib/format';
 import PageHeader, { EmptyState, Flash } from '@/components/ui';
 import ClientForm from '@/components/ClientForm';
+import PaymentConditionBadge from '@/components/PaymentConditionBadge';
 import { createClient } from '@/app/actions/clients';
 import type { FlashParams } from '@/lib/flash';
 
@@ -81,6 +87,7 @@ export default async function ClientsPage({
             action={createClient}
             submitLabel="Guardar cliente"
             showVehicles={showsVehicles(user)}
+            conditions={paymentConditions(user)}
           />
         </div>
       </details>
@@ -116,15 +123,7 @@ export default async function ClientsPage({
                   <td className="text-slate-400">{client.vehicles_count}</td>
                   <td className="text-slate-400">{client.jobs_count}</td>
                   <td>
-                    <span
-                      className={`badge ${
-                        client.payment_condition === 'Deuda'
-                          ? 'bg-amber-500/15 text-amber-300'
-                          : 'bg-emerald-500/15 text-emerald-300'
-                      }`}
-                    >
-                      {client.payment_condition}
-                    </span>
+                    <PaymentConditionBadge condition={client.payment_condition} />
                   </td>
                   <td className={`text-right font-semibold ${client.debt > 0 ? 'text-red-300' : 'text-slate-400'}`}>
                     {formatMoney(client.debt)}

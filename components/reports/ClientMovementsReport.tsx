@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import { formatDate, formatMoney } from '@/lib/format';
 import { periodLabel, type ReportParams } from '@/lib/reports';
 import { EmptyState } from '@/components/ui';
+import PaymentConditionBadge from '@/components/PaymentConditionBadge';
 import { DetailGrid, DetailItem, Drill, Metric, ReportFrame } from './ui';
 
 type ClientBalance = {
@@ -22,6 +23,7 @@ type JobRow = {
   description: string;
   total: number;
   currency: string;
+  payment_condition: string;
   created_by: string;
 };
 
@@ -36,7 +38,7 @@ type PaymentRow = {
 };
 
 export default async function ClientMovementsReport({ params, unit }: { params: ReportParams; unit: string }) {
-  const { from, to, user } = params;
+  const { from, to, user, cond } = params;
 
   const rows = await query<ClientBalance>(
     `SELECT c.id, c.name, c.ci_ruc,
@@ -51,6 +53,7 @@ export default async function ClientMovementsReport({ params, unit }: { params: 
                   AND ($2 = '' OR service_date <= $2::date)
                   AND ($3 = '' OR created_by = $3)
                   AND ($4 = '' OR unit_id = $4)
+                  AND ($5 = '' OR payment_condition = $5)
                 GROUP BY client_id) j ON j.client_id = c.id
      LEFT JOIN (SELECT client_id, sum(amount) AS payments_total
                 FROM debt_payments
@@ -58,6 +61,7 @@ export default async function ClientMovementsReport({ params, unit }: { params: 
                   AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
                   AND ($3 = '' OR created_by = $3)
                   AND ($4 = '' OR unit_id = $4)
+                  AND ($5 = '' OR upper(payment_method) = $5)
                 GROUP BY client_id) p ON p.client_id = c.id
      LEFT JOIN (SELECT client_id, sum(balance) AS balance
                 FROM receivables WHERE NOT paid AND ($4 = '' OR unit_id = $4) AND ($3 = '' OR created_by = $3)
@@ -66,19 +70,20 @@ export default async function ClientMovementsReport({ params, unit }: { params: 
         OR COALESCE(p.payments_total, 0) > 0
         OR COALESCE(r.balance, 0) > 0)
      ORDER BY COALESCE(j.jobs_total, 0) DESC, c.name`,
-    [from, to, user, unit],
+    [from, to, user, unit, cond],
   );
 
   const jobs = await query<JobRow>(
-    `SELECT id, client_id, service_date, description, total, currency, created_by
+    `SELECT id, client_id, service_date, description, total, currency, payment_condition, created_by
      FROM jobs
      WHERE client_id IS NOT NULL
        AND ($1 = '' OR service_date >= $1::date)
        AND ($2 = '' OR service_date <= $2::date)
        AND ($3 = '' OR created_by = $3)
        AND ($4 = '' OR unit_id = $4)
+       AND ($5 = '' OR payment_condition = $5)
      ORDER BY service_date DESC, id DESC`,
-    [from, to, user, unit],
+    [from, to, user, unit, cond],
   );
 
   const payments = await query<PaymentRow>(
@@ -89,8 +94,9 @@ export default async function ClientMovementsReport({ params, unit }: { params: 
        AND ($2 = '' OR created_at < ($2::date + interval '1 day'))
        AND ($3 = '' OR created_by = $3)
        AND ($4 = '' OR unit_id = $4)
+       AND ($5 = '' OR upper(payment_method) = $5)
      ORDER BY created_at DESC`,
-    [from, to, user, unit],
+    [from, to, user, unit, cond],
   );
 
   const jobsByClient = new Map<number, JobRow[]>();
@@ -175,7 +181,10 @@ export default async function ClientMovementsReport({ params, unit }: { params: 
                       <span className="text-slate-500">{formatDate(job.service_date)}</span> ·{' '}
                       {job.description || 'Sin detalle'} · {job.created_by || 'Sin operario'}
                     </span>
-                    <span className="text-slate-200">{formatMoney(job.total, job.currency)}</span>
+                    <span className="flex items-center gap-2 text-slate-200">
+                      <PaymentConditionBadge condition={job.payment_condition} />
+                      {formatMoney(job.total, job.currency)}
+                    </span>
                   </p>
                 ))
               )}

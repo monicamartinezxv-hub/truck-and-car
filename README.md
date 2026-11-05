@@ -8,7 +8,8 @@ la aplicación original en un solo archivo HTML.
 
 - **Dashboard** — clientes, trabajos del día, saldo por cobrar, ventas y clientes en mora.
 - **Clientes** — datos, vehículos, historial de trabajos y cuentas por cobrar.
-- **Gomería / Taller** — trabajos con servicios/artículos, checklist, contado o deuda.
+- **Gomería / Taller** — trabajos con servicios/artículos, checklist y condición de pago
+  (efectivo, deuda, QR o transferencia).
 - **Cuentas por Cobrar** — cobros totales, abonos por cuenta o por cliente (imputados a las cuentas más antiguas).
 - **Stock e Inventario** / **Stock de Artículos (Garaje 14)** — altas, edición y control de stock.
 - **Stock de Cubiertas** — cubiertas guardadas por cliente.

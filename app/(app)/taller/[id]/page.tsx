@@ -6,6 +6,7 @@ import { canEditPrices } from '@/lib/auth';
 import {
   clientVisibilitySql,
   jobOwnerScope,
+  paymentConditions,
   seesAllClients,
   stockSection,
   usesMaintenance,
@@ -159,6 +160,7 @@ export default async function JobDetailPage({
         canEditPrices={canEditPrices(user.role)}
         hideServices={usesMaintenance(user)}
         hideChecklist={usesMaintenance(user)}
+        conditions={paymentConditions(user)}
       />
 
       <form action={deleteJob} className="mt-4">
