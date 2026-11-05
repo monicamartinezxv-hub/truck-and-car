@@ -1,0 +1,346 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import type { PoolClient } from 'pg';
+import { one, query, withTransaction } from '@/lib/db';
+import { canEditPrices, requireUser, type Role } from '@/lib/auth';
+import { jobOwnerScope } from '@/lib/permissions';
+import { flashError, flashSuccess } from '@/lib/flash';
+import { isDateISO, todayISO } from '@/lib/format';
+import { CHECKLIST_ITEMS, SERVICE_TO_STOCK_CATEGORY } from '@/lib/constants';
+
+export type JobItemInput = {
+  service: string;
+  quantity: number;
+  unit_price: number;
+  stock_item_id?: number | null;
+};
+
+function parseItems(raw: FormDataEntryValue | null): JobItemInput[] {
+  if (typeof raw !== 'string' || !raw.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw) as JobItemInput[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item) => ({
+        service: String(item.service ?? '').trim(),
+        quantity: Math.max(1, Number(item.quantity) || 1),
+        unit_price: Math.max(0, Number(item.unit_price) || 0),
+        stock_item_id: item.stock_item_id ? Number(item.stock_item_id) : null,
+      }))
+      .filter((item) => item.service !== '');
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Los perfiles operativos no pueden alterar el precio de un artículo: se toma
+ * siempre el precio oficial cargado por la administración.
+ */
+async function withOfficialPrices(
+  items: JobItemInput[],
+  role: Role,
+  unit: string,
+): Promise<JobItemInput[]> {
+  if (canEditPrices(role)) return items;
+
+  const stockIds = items
+    .map((item) => item.stock_item_id)
+    .filter((id): id is number => typeof id === 'number');
+  if (stockIds.length === 0) return items;
+
+  const rows = await query<{ id: number; price: number }>(
+    'SELECT id, price FROM stock_items WHERE id = ANY($1::int[]) AND unit_id = $2',
+    [stockIds, unit],
+  );
+  const prices = new Map(rows.map((row) => [row.id, Number(row.price)]));
+
+  return items.map((item) => {
+    const official = item.stock_item_id ? prices.get(item.stock_item_id) : undefined;
+    return official === undefined ? item : { ...item, unit_price: official };
+  });
+}
+
+function parseChecklist(raw: FormDataEntryValue | null): Record<string, boolean> {
+  const checklist: Record<string, boolean> = {};
+  let parsed: Record<string, unknown> = {};
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      parsed = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      parsed = {};
+    }
+  }
+  for (const item of CHECKLIST_ITEMS) {
+    checklist[item] = Boolean(parsed[item]);
+  }
+  return checklist;
+}
+
+function jobFields(formData: FormData) {
+  const serviceDate = String(formData.get('service_date') ?? '');
+  const endDate = String(formData.get('end_date') ?? '');
+  const currency = String(formData.get('currency') ?? 'PYG') === 'USD' ? 'USD' : 'PYG';
+  const paymentCondition = String(formData.get('payment_condition') ?? 'Contado') === 'Deuda' ? 'Deuda' : 'Contado';
+
+  return {
+    client_id: Number(formData.get('client_id')) || null,
+    plate: String(formData.get('plate') ?? '').trim(),
+    service_date: isDateISO(serviceDate) ? serviceDate : todayISO(),
+    end_date: isDateISO(endDate) ? endDate : null,
+    currency,
+    payment_condition: paymentCondition,
+    notes: String(formData.get('notes') ?? '').trim(),
+  };
+}
+
+async function deductStock(client: PoolClient, items: JobItemInput[], unit: string) {
+  for (const item of items) {
+    if (item.stock_item_id) {
+      await client.query(
+        `UPDATE stock_items SET quantity = GREATEST(quantity - $1, 0) WHERE id = $2 AND unit_id = $3`,
+        [item.quantity, item.stock_item_id, unit],
+      );
+      continue;
+    }
+    const category = SERVICE_TO_STOCK_CATEGORY[item.service];
+    if (!category) continue;
+    const stockRow = await client.query<{ id: number; quantity: number }>(
+      `SELECT id, quantity FROM stock_items
+       WHERE category = $1 AND unit_id = $2 AND section = 'general' AND quantity > 0
+       ORDER BY id LIMIT 1`,
+      [category, unit],
+    );
+    const stockItem = stockRow.rows[0];
+    if (stockItem) {
+      await client.query(
+        `UPDATE stock_items SET quantity = GREATEST(quantity - $1, 0) WHERE id = $2 AND unit_id = $3`,
+        [Math.min(item.quantity, stockItem.quantity), stockItem.id, unit],
+      );
+    }
+  }
+}
+
+export async function createJob(formData: FormData) {
+  const user = await requireUser();
+  const items = await withOfficialPrices(parseItems(formData.get('items')), user.role, user.unit);
+  const fields = jobFields(formData);
+
+  if (items.length === 0) {
+    redirect(flashError('/taller/nuevo', 'Agregá al menos un servicio o artículo'));
+  }
+
+  const total = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+  const checklist = parseChecklist(formData.get('checklist'));
+
+  await withTransaction(async (client) => {
+    const clientRow = fields.client_id
+      ? (
+          await client.query<{ name: string; phone: string }>(
+            'SELECT name, phone FROM clients WHERE id = $1 AND unit_id = $2',
+            [fields.client_id, user.unit],
+          )
+        ).rows[0]
+      : null;
+
+    const description = items.map((item) => item.service).join(', ');
+
+    const inserted = await client.query<{ id: number }>(
+      `INSERT INTO jobs
+        (client_id, client_name, plate, service_date, end_date, currency, payment_condition,
+         total, description, notes, checklist, created_by, unit_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13)
+       RETURNING id`,
+      [
+        fields.client_id,
+        clientRow?.name ?? '',
+        fields.plate,
+        fields.service_date,
+        fields.end_date,
+        fields.currency,
+        fields.payment_condition,
+        total,
+        description,
+        fields.notes,
+        JSON.stringify(checklist),
+        user.username,
+        user.unit,
+      ],
+    );
+    const id = inserted.rows[0].id;
+
+    for (const item of items) {
+      await client.query(
+        `INSERT INTO job_items (job_id, service, quantity, unit_price, stock_item_id)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [id, item.service, item.quantity, item.unit_price, item.stock_item_id ?? null],
+      );
+    }
+
+    await deductStock(client, items, user.unit);
+
+    if (fields.payment_condition === 'Deuda' && total > 0) {
+      await client.query(
+        `INSERT INTO receivables
+          (client_id, job_id, client_name, plate, description, service_date, currency,
+           original_balance, balance, applied_amount, paid, created_by, unit_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, 0, false, $9, $10)`,
+        [
+          fields.client_id,
+          id,
+          clientRow?.name ?? '',
+          fields.plate,
+          description,
+          fields.service_date,
+          fields.currency,
+          total,
+          user.username,
+          user.unit,
+        ],
+      );
+    }
+
+    return id;
+  });
+
+  revalidatePath('/taller');
+  revalidatePath('/cuentas-por-cobrar');
+  revalidatePath('/');
+  // Salir del formulario evita reenvíos (F5 o doble clic) que dupliquen el trabajo.
+  redirect(flashSuccess('/taller', 'Trabajo registrado'));
+}
+
+export async function updateJob(formData: FormData) {
+  const user = await requireUser();
+  const jobId = Number(formData.get('id'));
+  if (!jobId) redirect(flashError('/taller', 'Trabajo inválido'));
+
+  const items = await withOfficialPrices(parseItems(formData.get('items')), user.role, user.unit);
+  if (items.length === 0) {
+    redirect(flashError(`/taller/${jobId}`, 'El trabajo necesita al menos un ítem'));
+  }
+  const fields = jobFields(formData);
+  const checklist = parseChecklist(formData.get('checklist'));
+  const total = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+
+  const scope = jobOwnerScope(user);
+
+  await withTransaction(async (client) => {
+    const current = await client.query<{ payment_condition: string; client_id: number | null }>(
+      `SELECT payment_condition, client_id FROM jobs
+       WHERE id = $1 AND unit_id = $2 AND ($3::text IS NULL OR created_by = $3)`,
+      [jobId, user.unit, scope],
+    );
+    if (!current.rows[0]) {
+      redirect(flashError('/taller', 'Trabajo no encontrado'));
+    }
+
+    const description = items.map((item) => item.service).join(', ');
+    await client.query(
+      `UPDATE jobs SET client_id = $1, plate = $2, service_date = $3, end_date = $4,
+         currency = $5, payment_condition = $6, total = $7, description = $8, notes = $9,
+         checklist = $10::jsonb
+       WHERE id = $11 AND unit_id = $12`,
+      [
+        fields.client_id,
+        fields.plate,
+        fields.service_date,
+        fields.end_date,
+        fields.currency,
+        fields.payment_condition,
+        total,
+        description,
+        fields.notes,
+        JSON.stringify(checklist),
+        jobId,
+        user.unit,
+      ],
+    );
+
+    await client.query('DELETE FROM job_items WHERE job_id = $1', [jobId]);
+    for (const item of items) {
+      await client.query(
+        `INSERT INTO job_items (job_id, service, quantity, unit_price, stock_item_id)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [jobId, item.service, item.quantity, item.unit_price, item.stock_item_id ?? null],
+      );
+    }
+
+    const receivable = await client.query<{ id: number; paid: boolean }>(
+      'SELECT id, paid FROM receivables WHERE job_id = $1 AND unit_id = $2 ORDER BY id LIMIT 1',
+      [jobId, user.unit],
+    );
+    const existing = receivable.rows[0];
+
+    if (fields.payment_condition === 'Deuda' && !existing && total > 0) {
+      const clientRow = fields.client_id
+        ? (
+            await client.query<{ name: string }>(
+              'SELECT name FROM clients WHERE id = $1 AND unit_id = $2',
+              [fields.client_id, user.unit],
+            )
+          ).rows[0]
+        : null;
+      await client.query(
+        `INSERT INTO receivables
+          (client_id, job_id, client_name, plate, description, service_date, currency,
+           original_balance, balance, applied_amount, paid, created_by, unit_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, 0, false, 'sistema', $9)`,
+        [
+          fields.client_id,
+          jobId,
+          clientRow?.name ?? '',
+          fields.plate,
+          description,
+          fields.service_date,
+          fields.currency,
+          total,
+          user.unit,
+        ],
+      );
+    }
+
+    if (existing && !existing.paid && total > 0) {
+      await client.query(
+        `UPDATE receivables
+         SET original_balance = $1, balance = GREATEST($1 - applied_amount, 0), description = $2
+         WHERE id = $3 AND unit_id = $4`,
+        [total, description, existing.id, user.unit],
+      );
+    }
+  });
+
+  revalidatePath('/taller');
+  revalidatePath(`/taller/${jobId}`);
+  revalidatePath('/cuentas-por-cobrar');
+  // Se abandona el formulario tras confirmar, para que un F5 no reenvíe los datos.
+  redirect(flashSuccess('/taller', 'Trabajo actualizado'));
+}
+
+export async function deleteJob(formData: FormData) {
+  const user = await requireUser();
+  const jobId = Number(formData.get('id'));
+  if (!jobId) redirect(flashError('/taller', 'Trabajo inválido'));
+
+  // Sólo se eliminan trabajos propios (o de la unidad, para admin/admin2/garaje14).
+  const owned = await one<{ id: number }>(
+    `SELECT id FROM jobs WHERE id = $1 AND unit_id = $2 AND ($3::text IS NULL OR created_by = $3)`,
+    [jobId, user.unit, jobOwnerScope(user)],
+  );
+  if (!owned) redirect(flashError('/taller', 'Trabajo no encontrado'));
+
+  await withTransaction(async (client) => {
+    await client.query('DELETE FROM receivables WHERE job_id = $1 AND unit_id = $2 AND NOT paid', [
+      jobId,
+      user.unit,
+    ]);
+    await client.query('DELETE FROM jobs WHERE id = $1 AND unit_id = $2', [jobId, user.unit]);
+  });
+
+  revalidatePath('/taller');
+  revalidatePath('/cuentas-por-cobrar');
+  redirect(flashSuccess('/taller', 'Trabajo eliminado'));
+}
+
