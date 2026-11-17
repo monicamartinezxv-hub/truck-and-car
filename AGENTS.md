@@ -155,6 +155,16 @@ guardan con scrypt (`lib/auth.ts`).
   campo `vehicles`, `updateClient` sólo sincroniza vehículos cuando el campo llegó (si no, borraría
   los ya cargados). `typesStockCategory()` hace que `admin2` escriba la **Categoría** del artículo
   como texto libre en `/stock/garaje14`; `admin` mantiene el selector `STOCK_CATEGORIES`.
+- **Respaldos** (`scripts/backup.sh`, `scripts/restore-db.sh`, `scripts/restore-app.sh`): corren en
+  el host con Docker, no dentro de un contenedor. `backup.sh` hace `pg_dump -Fc` con
+  `docker compose exec db` (usa `$BASE44_CONFIG_ROOT/docker-compose.base44.yml` si existe, si no el
+  compose del repo; proyecto `app`) y verifica el archivo con `pg_restore -l`; el respaldo de código
+  es un `tar.gz` del árbol sin `node_modules`, `.next`, `.git`, `backups` ni `restores`. Todo va a
+  `backups/` (ignorado por git, 14 archivos por tipo, `BACKUP_KEEP` lo cambia). `restore-db.sh`
+  pide confirmación, guarda `backups/db/pre-restore-<fecha>.dump` antes de tocar nada, hace
+  `DROP SCHEMA public CASCADE` + `CREATE SCHEMA public` y restaura con `pg_restore
+  --single-transaction`; si el dump es de un esquema viejo hay que correr `run --rm migrate`
+  después. Nunca usar `docker compose down -v`: borra el volumen `db_data` y con él los datos.
 - **Alcance de los informes**: `reportScope(session)` (`lib/reports.ts`) devuelve la unidad del
   usuario y `''` para el rol `admin`. Con `''` las consultas de los ocho informes se leen como
   `($n = '' OR unit_id = $n)` y `operatorOptions('')` lista los operarios de todas las unidades, así

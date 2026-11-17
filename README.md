@@ -26,3 +26,26 @@ docker compose -f docker-compose.base44.yml up -d
 
 La app queda en http://localhost:3000 (login con `admin` / `1234`, ver `AGENTS.md` para el resto de
 usuarios). El esquema y los usuarios iniciales se aplican automáticamente con el servicio `migrate`.
+
+## Respaldos
+
+```bash
+./scripts/backup.sh          # base de datos + código de la app
+./scripts/backup.sh db       # sólo la base (pg_dump)
+./scripts/backup.sh app      # sólo el código (tar.gz)
+```
+
+Los archivos quedan en `backups/db/` y `backups/app/` (ignorados por git) y se conservan los
+últimos 14 de cada tipo (`BACKUP_KEEP` para cambiarlo).
+
+Para volver atrás:
+
+```bash
+./scripts/restore-db.sh backups/db/truckcar-20260101-120000.dump
+./scripts/restore-app.sh backups/app/truck-and-car-20260101-120000.tar.gz
+```
+
+`restore-db.sh` pide escribir `RESTAURAR`, guarda antes un respaldo de seguridad
+(`pre-restore-<fecha>.dump`) y reemplaza todos los datos dentro de una sola transacción.
+`restore-app.sh` extrae el código en una carpeta nueva (`restores/`), nunca encima de la copia en
+uso.
