@@ -9,6 +9,7 @@ import {
   Boxes,
   CircleDot,
   CreditCard,
+  DatabaseBackup,
   HardHat,
   LayoutDashboard,
   LogOut,
@@ -35,6 +36,7 @@ const ICONS: Record<string, typeof Truck> = {
   '/funcionarios': HardHat,
   '/informes': BarChart3,
   '/usuarios': UserCog,
+  '/respaldos': DatabaseBackup,
 };
 
 export default function Sidebar({ user, items }: { user: SessionUser; items: NavItem[] }) {

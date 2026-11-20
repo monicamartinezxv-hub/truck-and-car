@@ -38,6 +38,11 @@ usuarios). El esquema y los usuarios iniciales se aplican automáticamente con e
 Los archivos quedan en `backups/db/` y `backups/app/` (ignorados por git) y se conservan los
 últimos 14 de cada tipo (`BACKUP_KEEP` para cambiarlo).
 
+El servicio `backup` del compose hace la copia **automática todos los días a las 23:00** (hora de
+Paraguay) y guarda el mismo par de archivos con `-auto-` en el nombre. Desde la app, el módulo
+**Historial de Respaldos** (sólo `admin`, en el menú lateral) lista todas las copias con fecha,
+tipo y tamaño, y el botón **Crear copia ahora** genera una copia manual sin usar la terminal.
+
 Para volver atrás:
 
 ```bash

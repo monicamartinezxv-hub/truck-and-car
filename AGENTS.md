@@ -165,6 +165,18 @@ guardan con scrypt (`lib/auth.ts`).
   `DROP SCHEMA public CASCADE` + `CREATE SCHEMA public` y restaura con `pg_restore
   --single-transaction`; si el dump es de un esquema viejo hay que correr `run --rm migrate`
   después. Nunca usar `docker compose down -v`: borra el volumen `db_data` y con él los datos.
+- **Respaldo automático y módulo `/respaldos`**: el servicio `backup` del compose
+  (postgres:16-alpine, `TZ=America/Asuncion`, código montado en `/app`) corre
+  `scripts/backup-schedule.sh`, que compara la hora cada 20 s y una vez por día, a las 23:00
+  (`BACKUP_AT`), ejecuta `scripts/backup-run.sh all` con `BACKUP_ORIGIN=auto` (los archivos llevan
+  `-auto-` en el nombre). `backup-run.sh` es la versión que corre dentro del contenedor: usa
+  `pg_dump "$DATABASE_URL"` y `tar` (busybox, soporta `--exclude`). El servicio `web` instala
+  `postgresql-client` al arrancar (`apk add`) para que la página **Historial de Respaldos**
+  (`/respaldos`, sólo `admin`) pueda crear una copia con el mismo script desde
+  `lib/backups.ts#runBackup` + `app/actions/backups.ts#createBackupNow`. `lib/backups.ts#listBackups`
+  lee `backups/db` y `backups/app` y marca como automáticas las copias con `-auto-`; la página
+  muestra archivo, tipo, origen, fecha y tamaño. Si `pg_dump` no está en el contenedor, el botón
+  devuelve el error del script en el aviso `?err=`.
 - **Alcance de los informes**: `reportScope(session)` (`lib/reports.ts`) devuelve la unidad del
   usuario y `''` para el rol `admin`. Con `''` las consultas de los ocho informes se leen como
   `($n = '' OR unit_id = $n)` y `operatorOptions('')` lista los operarios de todas las unidades, así

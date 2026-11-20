@@ -24,6 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/funcionarios', label: 'Funcionarios', roles: ['admin'] },
   { href: '/informes', label: 'Informes y Reportes', roles: ['admin', 'admin2'] },
   { href: '/usuarios', label: 'Usuarios', roles: ['admin'] },
+  { href: '/respaldos', label: 'Historial de Respaldos', roles: ['admin'] },
 ];
 
 /** Módulos de Garaje 14: son los mismos para garaje14 y para admin2. */
